@@ -1,0 +1,30 @@
+.root { flex-grow: 1; background-color: rgb(80,80,80); color: black; font-size: 12px; }
+.workspace { min-width: 1280px; min-height: 720px; flex-grow: 1; }
+.row { flex-direction: row; }
+.menu { height: 24px; background-color: rgb(240,240,240); }
+.menu Button { margin: 0; border-width: 0; background-color: transparent; padding-left: 10px; padding-right: 10px; }
+.main { flex-direction: row; flex-grow: 1; }
+.sidebar { width: 256px; flex-shrink: 0; padding: 3px; }
+.right { flex-grow: 1; }
+.viewport { flex-grow: 1; min-height: 380px; background-color: white; overflow: hidden; }
+.viewport-title { color: rgb(130,25,25); font-size: 16px; margin: 8px; }
+.viewport-note { color: rgb(90,90,90); margin: 8px; }
+.axis { position: absolute; right: 12px; bottom: 12px; color: rgb(30,70,130); }
+.bottom { height: 180px; flex-direction: row; padding: 2px; }
+.panel { padding: 3px; margin-right: 3px; border-width: 1px; border-color: rgb(30,30,30); flex-shrink: 0; }
+.header { color: white; -unity-text-align: middle-center; height: 19px; }
+.model { width: 148px; background-color: rgb(118,67,67); }
+.bone, .camera { width: 190px; background-color: rgb(62,61,105); }
+.morph, .light { width: 194px; background-color: rgb(55,104,49); }
+.accessory { width: 194px; background-color: rgb(105,103,45); }
+.playback { width: 135px; background-color: rgb(62,61,105); }
+.frame-header { background-color: rgb(118,67,67); }
+.timeline { flex-grow: 1; min-height: 240px; background-color: rgb(24,24,24); margin-top: 4px; margin-bottom: 4px; }
+.interpolation { height: 150px; flex-direction: row; margin-top: 5px; }
+.curve { width: 125px; height: 125px; background-color: white; }
+.interpolation-controls { flex-grow: 1; }
+.status { height: 22px; background-color: rgb(235,235,235); padding-left: 6px; }
+Button { min-height: 22px; margin: 2px; padding-left: 4px; padding-right: 4px; flex-grow: 1; }
+TextField, IntegerField, FloatField, DropdownField { margin: 2px; min-height: 20px; }
+Toggle { margin: 3px; color: white; }
+.hidden { display: none; }
