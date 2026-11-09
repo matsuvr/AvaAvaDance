@@ -2,9 +2,9 @@
 import json
 from pathlib import Path
 root = Path(__file__).resolve().parents[1]
-assert '2022.3.22f1' in (root / 'ProjectSettings/ProjectVersion.txt').read_text()
-json.loads((root / 'Packages/manifest.json').read_text())
-runtime = (root / 'Assets/AvaAvaDance/Runtime/DanceApp.cs').read_text()
+assert '2022.3.22f1' in (root / 'ProjectSettings/ProjectVersion.txt').read_text(encoding="utf-8-sig")
+json.loads((root / 'Packages/manifest.json').read_text(encoding="utf-8-sig"))
+runtime = (root / 'Assets/AvaAvaDance/Runtime/DanceApp.cs').read_text(encoding="utf-8-sig")
 assert 'UnityEditor' not in runtime
 assert 'RuntimeInitializeOnLoadMethod' in runtime
 assert 'UIDocument' in runtime and 'PanelSettings' in runtime
@@ -16,7 +16,7 @@ for panel in ['sidebar', 'viewport', 'bone', 'morph', 'camera', 'light', 'access
 assert 'Mathf.Clamp(value, 0, 10000)' in runtime
 assert 'void RefreshTimelineLabels()' in runtime
 assert 'timeline.Clear()' not in runtime.split('void DrawTimeline')[1].split('void RefreshTimelineLabels')[0]
-assert '--- !u!104' in (root / 'Assets/Scenes/Main.unity').read_text()
+assert '--- !u!104' in (root / 'Assets/Scenes/Main.unity').read_text(encoding="utf-8-sig")
 for path in (root / 'Assets').rglob('*'):
     if path.is_file() and path.suffix != '.meta':
         assert Path(str(path) + '.meta').exists(), str(path)

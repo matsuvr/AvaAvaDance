@@ -1,5 +1,5 @@
 .root { flex-grow: 1; background-color: rgb(80,80,80); color: black; font-size: 12px; }
-.workspace { min-width: 1280px; min-height: 720px; flex-grow: 1; }
+.workspace { min-width: 1200px; min-height: 720px; flex-grow: 1; }
 .row { flex-direction: row; }
 .menu { height: 24px; background-color: rgb(240,240,240); }
 .menu Button { margin: 0; border-width: 0; background-color: transparent; padding-left: 10px; padding-right: 10px; }
@@ -10,7 +10,7 @@
 .viewport-title { color: rgb(130,25,25); font-size: 16px; margin: 8px; }
 .viewport-note { color: rgb(90,90,90); margin: 8px; }
 .axis { position: absolute; right: 12px; bottom: 12px; color: rgb(30,70,130); }
-.bottom { height: 180px; flex-direction: row; padding: 2px; }
+.bottom { height: 210px; flex-direction: row; padding: 2px; }
 .panel { padding: 3px; margin-right: 3px; border-width: 1px; border-color: rgb(30,30,30); flex-shrink: 0; }
 .header { color: white; -unity-text-align: middle-center; height: 19px; }
 .model { width: 148px; background-color: rgb(118,67,67); }
@@ -28,3 +28,6 @@ Button { min-height: 22px; margin: 2px; padding-left: 4px; padding-right: 4px; f
 TextField, IntegerField, FloatField, DropdownField { margin: 2px; min-height: 20px; }
 Toggle { margin: 3px; color: white; }
 .hidden { display: none; }
+.import-dialog { position: absolute; left: 15%; top: 25%; width: 70%; padding: 18px; background-color: rgb(235,235,235); border-width: 2px; border-color: black; } .import-dialog Toggle { color: black; }
+Button { height: 24px; min-height: 24px; padding-top: 0; padding-bottom: 0; } TextField, IntegerField, FloatField, DropdownField { height: 24px; min-height: 24px; } .row > * { min-width: 0; } .panel Label { font-size: 12px; } .panel .row { min-height: 24px; } .panel Toggle { height: 20px; flex-shrink: 0; }
+.unity-base-field__input { height: 18px; min-height: 18px; padding: 0; margin: 0; -unity-text-align: middle-left; } .unity-base-text-field__input { font-size: 12px; padding: 0; } .unity-popup-field__text { margin: 0; padding: 0; -unity-text-align: middle-left; }

@@ -107,3 +107,10 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Local verification artifacts
+/SmokeOutput/
+/Tests/ReaderHarness/bin/
+/Tests/ReaderHarness/obj/
+/Tests/triangle.unitypackage
+*.zip

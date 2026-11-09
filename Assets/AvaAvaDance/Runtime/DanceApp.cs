@@ -6,11 +6,12 @@ using UnityEngine.UIElements;
 namespace AvaAvaDance
 {
     /// <summary>Runtime layout prototype. No avatar, motion or file IO is performed.</summary>
-    public sealed class DanceApp : MonoBehaviour
+    public sealed partial class DanceApp : MonoBehaviour
     {
         private PanelSettings panel;
         private VisualElement timeline, viewport, bone, morph, camera, light, accessory;
-        private Label status, viewportTitle;
+        private Label status, viewportTitle, viewportNote;
+        private DropdownField modeField, modelNameField;
         private IntegerField frameField;
         private int frame;
         private bool modelMode;
@@ -24,8 +25,13 @@ namespace AvaAvaDance
 
         private void OnEnable()
         {
-            panel = ScriptableObject.CreateInstance<PanelSettings>();
+            var savedPanel = Resources.Load<PanelSettings>("MainPanel");
+            panel = savedPanel != null ? Instantiate(savedPanel) : ScriptableObject.CreateInstance<PanelSettings>();
+            var screenCamera = new GameObject("Screen background").AddComponent<Camera>();
+            screenCamera.transform.SetParent(transform); screenCamera.cullingMask = 0; screenCamera.clearFlags = CameraClearFlags.SolidColor; screenCamera.backgroundColor = Color.gray;
             panel.scaleMode = PanelScaleMode.ConstantPixelSize;
+            var japaneseFont = Resources.Load<Font>("MPLUS1p-Regular");
+            if (japaneseFont != null) { var textSettings = ScriptableObject.CreateInstance<PanelTextSettings>(); textSettings.defaultFontAsset = UnityEngine.TextCore.Text.FontAsset.CreateFontAsset(japaneseFont); panel.textSettings = textSettings; }
             panel.themeStyleSheet = Resources.Load<ThemeStyleSheet>("ClassicTheme");
             var document = gameObject.AddComponent<UIDocument>();
             document.panelSettings = panel;
@@ -75,16 +81,17 @@ namespace AvaAvaDance
             viewport = Box(right, "viewport", "viewport");
             viewport.generateVisualContent += DrawGrid;
             viewportTitle = new Label(); viewportTitle.AddToClassList("viewport-title"); viewport.Add(viewportTitle);
-            var note = new Label("UI配置プロトタイプ：アバター・モーションは未読込");
+            var note = new Label("アバター未読込。モデル操作の「読込」から unitypackage を選択。"); viewportNote = note;
             note.AddToClassList("viewport-note"); viewport.Add(note);
             var axis = new Label("X   Y   Z\n視点操作：未実装"); axis.AddToClassList("axis"); viewport.Add(axis);
             var bottom = Box(right, "bottom", "bottom");
             var model = Panel(bottom, "model", "モデル操作");
             var mode = Choice(model, new[] { "カメラ・照明・アクセサリ", "モデル操作（UIプレビュー）" });
+            modeField = mode;
             mode.RegisterValueChangedCallback(evt => ChangeMode(evt.newValue != "カメラ・照明・アクセサリ"));
             Buttons(model, "読込", "削除");
             DisabledToggle(model, "表示"); Action(model, "加算合成", false);
-            Choice(model, new[] { "モデル未読込" }); Action(model, "登録", false);
+            modelNameField = Choice(model, new[] { "モデル未読込" }); Action(model, "登録", false);
             bone = Panel(bottom, "bone", "ボーン操作");
             Buttons(bone, "選択", "回転", "移動");
             Buttons(bone, "BOX選択", "全て選択");
@@ -124,6 +131,7 @@ namespace AvaAvaDance
             var playbackRange = Box(playback, "playback-range", "row"); Field(playbackRange, "0"); Field(playbackRange, "60");
             status = new Label("UIのみ。読込・保存・再生・登録・出力は未実装。");
             status.AddToClassList("status"); workspace.Add(status);
+            SetupAvatarImport(model, viewport);
             ChangeMode(false);
         }
 
@@ -139,6 +147,7 @@ namespace AvaAvaDance
         private void ChangeMode(bool model)
         {
             modelMode = model;
+            modeField?.SetValueWithoutNotify(model ? "モデル操作（UIプレビュー）" : "カメラ・照明・アクセサリ");
             bone.EnableInClassList("hidden", !model); morph.EnableInClassList("hidden", !model);
             camera.EnableInClassList("hidden", model); light.EnableInClassList("hidden", model);
             accessory.EnableInClassList("hidden", model);
@@ -221,6 +230,6 @@ namespace AvaAvaDance
                 row.style.backgroundColor = new Color(.65f,.55f,.43f); timeline.Add(row);
             }
         }
-        private void OnDestroy() { if (panel != null) Destroy(panel); }
+        private void OnDestroy() { DisposePreview(); if (panel != null) Destroy(panel); }
     }
 }
