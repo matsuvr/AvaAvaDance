@@ -19,7 +19,8 @@ API void *ava_load(const void *data, int size, char *error, int capacity) {
  o.target_axes=ufbx_axes_left_handed_y_up; o.target_unit_meters=1.0;
  o.geometry_transform_handling=UFBX_GEOMETRY_TRANSFORM_HANDLING_HELPER_NODES;
  o.inherit_mode_handling=UFBX_INHERIT_MODE_HANDLING_HELPER_NODES;
- o.generate_missing_normals=true; o.reverse_winding=true;
+ // Keep FBX face winding consistent with explicit normals. Unity handles mirrored node transforms.
+ o.generate_missing_normals=true; o.reverse_winding=false;
  ufbx_scene *s=ufbx_load_memory(data,(size_t)size,&o,&e);
  if(!s) { if(error&&capacity>0) ufbx_format_error(error,(size_t)capacity,&e); return NULL; }
  size_t total=0;
@@ -66,4 +67,6 @@ API int ava_mesh(ufbx_scene*s,int n,float*out,int*bones,int*mats,int capacity) {
  }
  free(ix);return dst;
 }
+
+
 

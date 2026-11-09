@@ -8,7 +8,10 @@ namespace AvaAvaDance.Editor
     {
         public static void Windows()
         {
+            if(!System.IO.File.Exists("Assets/StreamingAssets/liltoon.avadshader")) throw new Exception("Run ShaderPackBuilder.BuildLilToon first.");
             ProjectSetup.Configure();
+            PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneWindows64, false);
+            PlayerSettings.SetGraphicsAPIs(BuildTarget.StandaloneWindows64, new[] { UnityEngine.Rendering.GraphicsDeviceType.Direct3D11 });
             var panel = AssetDatabase.LoadAssetAtPath<UnityEngine.UIElements.PanelSettings>("Assets/AvaAvaDance/Resources/MainPanel.asset");
             if(panel == null) { panel=ScriptableObject.CreateInstance<UnityEngine.UIElements.PanelSettings>(); AssetDatabase.CreateAsset(panel,"Assets/AvaAvaDance/Resources/MainPanel.asset"); }
             panel.themeStyleSheet=Resources.Load<UnityEngine.UIElements.ThemeStyleSheet>("ClassicTheme"); EditorUtility.SetDirty(panel); AssetDatabase.SaveAssets();

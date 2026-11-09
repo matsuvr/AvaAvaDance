@@ -114,3 +114,14 @@ InitTestScene*.unity*
 /Tests/ReaderHarness/obj/
 /Tests/triangle.unitypackage
 *.zip
+
+/ThirdPartySources/
+*.zip.001
+*.zip.002
+
+
+/ShaderSmoke*/
+/Tests/MaterialHarness/bin/
+/Tests/MaterialHarness/obj/
+/Tests/liltoon-*.unitypackage
+
