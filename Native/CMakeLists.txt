@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.20)
+project(AvaFbx C)
+add_library(AvaFbx SHARED ava_fbx.c ufbx.c)
+target_compile_definitions(AvaFbx PRIVATE UFBX_NO_STDIO)
+set_property(TARGET AvaFbx PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

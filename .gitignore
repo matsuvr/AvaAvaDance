@@ -107,3 +107,21 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Local verification artifacts
+/SmokeOutput/
+/Tests/ReaderHarness/bin/
+/Tests/ReaderHarness/obj/
+/Tests/triangle.unitypackage
+*.zip
+
+/ThirdPartySources/
+*.zip.001
+*.zip.002
+
+
+/ShaderSmoke*/
+/Tests/MaterialHarness/bin/
+/Tests/MaterialHarness/obj/
+/Tests/liltoon-*.unitypackage
+
