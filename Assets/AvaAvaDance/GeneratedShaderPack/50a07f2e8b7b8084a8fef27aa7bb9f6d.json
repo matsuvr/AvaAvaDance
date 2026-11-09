@@ -1,0 +1,14 @@
+{
+    "schema": 1,
+    "target": "StandaloneWindows64",
+    "unity": "2022.3.22f1",
+    "pipeline": "BuiltIn",
+    "graphicsApi": "Direct3D11",
+    "shaders": [
+        {
+            "guid": "50a07f2e8b7b8084a8fef27aa7bb9f6d",
+            "name": "AvaAvaDance/CustomFixture",
+            "assetPath": "Assets/AvaAvaDance/ShaderFixtures/CustomFixture.shader"
+        }
+    ]
+}

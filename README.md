@@ -19,16 +19,16 @@ UnityPlayer.dll / AvaAvaDance_Data / MonoBleedingEdge などは exe と同梱が
 - gzip/tar と GUID/pathname をアプリ内で読み取り、FBX を ufbx で解析。
 - FBX の階層 / TRS / mesh / normal / UV / 材質スロット / skin / bindpose / 最大4 weight を Unity ランタイムオブジェクトへ再構築。
 - FBX 材質名と同名の `.mat` の `_MainTex` / `_BaseMap` GUID を照合し、パッケージ内 PNG を割当て。名前不一致、JPEG/TGA、embedded texture 等は未対応。
-- 内蔵の両面プレビュー用シェーダーを使用。VRChat 内と同じ見た目ではありません。
+- 対応GUIDの材質は同梱lilToon 2.4.1などのコンパイル済みシェーダーを適用。未対応は内蔵プレビューへfallbackし件数表示。VRChat内と完全同一とは限りません。
 - OS に依存せず日本語を表示できるよう、OFL の M PLUS 1p を同梱。
 
-**未対応:** prefab / prefab variant の組立や衣装設定、Modular Avatar / NDMF、lilToon / Poiyomi、PhysBone、blendshape、Humanoid Avatar 生成、アニメーション取込み、ポーズ編集 UI、キーフレーム保存・再生・書出し、Undo、VMD。
+**未対応:** prefab / prefab variant の組立や衣装設定、Modular Avatar / NDMF、Poiyomi等の未登録シェーダー、PhysBone、blendshape、Humanoid Avatar 生成、アニメーション取込み、ポーズ編集 UI、キーフレーム保存・再生・書出し、Undo、VMD。
 タイムライン操作は現在フレームの UI 選択のみです。未実装のボタンは無効化しています。
 
 ## 安全性と利用条件
 
 - アバターの外部送信・元ファイル変更・パッケージ内コード実行はしません。
-- C# / DLL / shader source / Editor script をロード・コンパイルしません。外部参照ファイルも読みません。
+- パッケージ内 C# / DLL / shader source / Editor script をロード・コンパイルしません。対応する事前コンパイル済みShaderだけを利用します。外部参照ファイルも読みません。
 - tar の絶対パス・traversal・リンク・重複・不正 checksum 等を拒否。1 member 256 MiB / 全展開 1 GiB / 20,000 members 上限。
 - FBX にメモリ・頂点・階層・処理時間の制限。PNG は最大4096四方、32枚、合計128 MiBの展開画素上限。
 - ネイティブパーサを OS サンドボックスで隔離しているわけではありません。信頼できる入手元のファイルを使用してください。
@@ -37,7 +37,7 @@ UnityPlayer.dll / AvaAvaDance_Data / MonoBleedingEdge などは exe と同梱が
 ## ソースから起動 / ビルド
 
 Unity Hub から **2022.3.22f1** で開き、**AvaAvaDance > Open UI prototype** で Play。
-Windows ビルドは次の batchmode コマンド、または `AvaAvaDance.Editor.BuildApp.Windows` を実行します。
+初回は ShaderPackBuilder.BuildLilToon で同梱パックを生成してください（Direct3D11単独設定、LILTOON_DISABLE_OPTIMIZATIONが必要）。詳細は Docs/shader-packs.md。Windows ビルドは次の batchmode コマンド、または `AvaAvaDance.Editor.BuildApp.Windows` を実行します。
 
 ```powershell
 Unity.exe -batchmode -quit -projectPath <repo> -executeMethod AvaAvaDance.Editor.BuildApp.Windows -logFile build.log
@@ -69,3 +69,9 @@ Builds/Windows/AvaAvaDance.exe -avaSmokePackage <repo>/Tests/triangle.unitypacka
 - [M PLUS 1p](https://github.com/google/fonts/tree/main/ofl/mplus1p)、OFL。`ThirdPartyNotices/MPLUS1p-OFL.txt` 参照。
 
 配布時はこれらのライセンスを同梱してください。
+
+## lilToon・追加シェーダー
+
+同梱lilToonのOpaque/Cutout/Transparentと各Outline版を対応。独自シェーダーもUnityで一度コンパイルした .avadshader パックを画面上の「シェーダー追加」で読み込めます。追加パックは現在の起動セッションで有効です。生の.shaderを実行時コンパイルするものではありません。材質のfloat/int/color/texture/UV/既知keywordを復元します。
+
+詳細・対応範囲・作成手順・一次資料: [シェーダーパック仕様](Docs/shader-packs.md)

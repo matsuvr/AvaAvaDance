@@ -24,6 +24,7 @@ namespace AvaAvaDance
 
         private void SetupAvatarImport(VisualElement model, VisualElement target)
         {
+            SetupShaders();
             loadButton = model.Query<Button>().ToList().First(b => b.text == "読込");
             loadButton.SetEnabled(true);
             loadButton.tooltip = "unitypackage 内の FBX を直接読み込みます（Windows x64 試作版）";
@@ -76,7 +77,7 @@ namespace AvaAvaDance
             var root = GetComponent<UIDocument>().rootVisualElement; root.Add(importDialog);
             importDialog.Add(new Label("表示する FBX を選択"));
             var choice = new DropdownField(models.Select(m => m.Path).ToList(), 0); importDialog.Add(choice);
-            var warning = new Label("FBX の形状・リグの試作読込です。prefab の組立、衣装設定、\nlilToon / PhysBone / VRChat スクリプトは再現しません。\n利用・変換が許可されたアバターのみ読み込んでください。"); importDialog.Add(warning);
+            var warning = new Label("FBX の形状・リグの試作読込です。prefab の組立、衣装設定、\nシェーダーは対応パックのみ。PhysBone / VRChat スクリプトは未対応。\n利用・変換が許可されたアバターのみ読み込んでください。"); importDialog.Add(warning);
             var consent = new Toggle("このアプリで利用できるアバターです"); importDialog.Add(consent);
             var row = Box(importDialog, "import-actions", "row");
             var load = new Button(() =>
@@ -99,7 +100,7 @@ namespace AvaAvaDance
             try
             {
                 avatar = FbxNative.Load(model.Data, Path.GetFileNameWithoutExtension(model.Path));
-                int textures = ApplyPackageTextures(assets);
+                int textures = ApplyPackageMaterials(assets);
                 EnsurePreview();
                 foreach (var transform in avatar.GetComponentsInChildren<Transform>()) transform.gameObject.layer = 30;
                 var renderers = avatar.GetComponentsInChildren<Renderer>();
@@ -113,40 +114,14 @@ namespace AvaAvaDance
                 previewCamera.transform.position = new Vector3(0, .15f, 3.2f);
                 previewCamera.transform.LookAt(Vector3.zero);
 
-                viewportNote.text = "ドラッグ: モデル回転 / ホイール: 距離。prefab・カスタムシェーダー・物理は未対応。";
+                viewportNote.text = "ドラッグ: モデル回転 / ホイール: 距離。prefab・物理は未対応。対応シェーダーを材質から適用。";
                 modelNameField.choices = new List<string> { avatar.name }; modelNameField.SetValueWithoutNotify(avatar.name);
                 ChangeMode(true); viewportTitle.text = "Model：" + avatar.name + "（FBX 直接読込）";
-                status.text = "FBX 表示: " + renderers.Length + " renderer / " + textures + " texture。ドラッグで回転、ホイールで距離。prefab/物理/アニメ未対応。";
+                status.text = "FBX 表示: " + renderers.Length + " renderer / " + textures + " texture / " + materialReport + "。prefab/物理/アニメ未対応。";
             }
             catch { ClearAvatar(); throw; }
         }
 
-        private int ApplyPackageTextures(List<UnityPackageReader.PackageAsset> assets)
-        {
-            var byGuid = assets.ToDictionary(a => a.Guid, StringComparer.OrdinalIgnoreCase);
-            var mats = assets.Where(a => a.HasAsset && a.Path.EndsWith(".mat", StringComparison.OrdinalIgnoreCase)).ToList();
-            int count=0; long textureBudget=128L*1024*1024;
-            foreach (var renderer in avatar.GetComponentsInChildren<Renderer>()) foreach (var material in renderer.sharedMaterials)
-            {
-                var source = mats.FirstOrDefault(a => Path.GetFileNameWithoutExtension(a.Path).Equals(material.name, StringComparison.OrdinalIgnoreCase));
-                if (source == null || source.Data.Length > 2*1024*1024) continue;
-                string yaml = Encoding.UTF8.GetString(source.Data);
-                var match = Regex.Match(yaml, @"(?:_MainTex|_BaseMap):\s*\r?\n\s*m_Texture:\s*\{[^}]*guid:\s*([0-9a-fA-F]{32})", RegexOptions.CultureInvariant);
-                if (!match.Success || !byGuid.TryGetValue(match.Groups[1].Value, out var textureAsset) || !textureAsset.HasAsset) continue;
-                // Decode only small PNG/JPEG files; preflight PNG dimensions to prevent image bombs.
-                byte[] bytes = textureAsset.Data;
-                bool png = bytes.Length > 24 && bytes[0]==137 && bytes[1]==80 && bytes[2]==78 && bytes[3]==71;
-                if (!png || bytes.Length > 32*1024*1024) continue;
-                long width = ((long)bytes[16]<<24)|((long)bytes[17]<<16)|((long)bytes[18]<<8)|bytes[19];
-                long height = ((long)bytes[20]<<24)|((long)bytes[21]<<16)|((long)bytes[22]<<8)|bytes[23];
-                if (width<1 || height<1 || width>4096 || height>4096 || width*height>16777216 || count>=32 || width*height*4>textureBudget) continue;
-                textureBudget -= width*height*4;
-                var texture = new Texture2D(2,2,TextureFormat.RGBA32,false);
-                if (!ImageConversion.LoadImage(texture, bytes, true)) { Destroy(texture); continue; }
-                importedResources.Add(texture); material.mainTexture=texture; count++;
-            }
-            return count;
-        }
         private void EnsurePreview()
         {
             if (previewRig != null) return;
@@ -177,7 +152,7 @@ namespace AvaAvaDance
         }
         private void DisposePreview()
         {
-            ClearAvatar(); if (previewRig != null) Destroy(previewRig);
+            ClearAvatar(); shaderLibrary?.Dispose(); if (previewRig != null) Destroy(previewRig);
             if (previewTexture != null) { previewTexture.Release(); Destroy(previewTexture); }
         }
     }

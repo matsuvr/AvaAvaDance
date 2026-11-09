@@ -19,3 +19,5 @@ Safety: memory-only FBX parse, UFBX_NO_STDIO, external file loading disabled, em
 
 Validation performed: MSVC x64 Release DLL compile; standalone native triangle import and malformed-input rejection. Real skinned avatar and rendered Unity validation are separate integration checks, not implied by these smoke tests.
 
+
+Winding regression: run python Tests/make_liltoon_fixture.py lts, then python Native/test_winding.py. Checks the self-authored sphere's 528 nondegenerate triangles agree with outward normals (48 polar degenerate triangles ignored). The loader does not add an extra reverse_winding; doing so inverted all faces and caused outline shaders to cover the visible sphere in black. Standalone outline rendering is validated separately.

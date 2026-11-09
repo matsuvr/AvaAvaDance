@@ -18,10 +18,14 @@ namespace AvaAvaDance
             string result;
             try
             {
+                int packArg=Array.IndexOf(args,"-avaShaderPack");
+                if(packArg>=0 && packArg+1<args.Length) shaderLibrary.Load(args[packArg+1]);
                 var package=UnityPackageReader.Read(args[input+1]);
                 var model=package.First(a=>a.HasAsset&&a.Path.EndsWith(".fbx",StringComparison.OrdinalIgnoreCase));
                 ImportModel(model,package);
                 Debug.Log("AVA_ROOT_RECT " + GetComponent<UnityEngine.UIElements.UIDocument>().rootVisualElement.worldBound + " VIEW=" + viewport.worldBound);
+                int expected=Array.IndexOf(args,"-avaExpectedShader");
+                if(expected>=0 && expected+1<args.Length) { var mat=avatar.GetComponentInChildren<Renderer>().sharedMaterial; if(mat.shader.name!=args[expected+1]) throw new Exception("Unexpected shader: "+mat.shader.name); if(mat.shader.name=="lilToon" && mat.FindPass("FORWARD")<0) throw new Exception("lilToon FORWARD pass missing"); Debug.Log("AVA_SHADER_VALIDATED "+mat.shader.name+" passes="+mat.passCount+" color="+mat.GetColor("_Color")); }
                 int renderers=avatar.GetComponentsInChildren<Renderer>().Length;
                 if(renderers<1) throw new Exception("No renderers");
                 var skin=avatar.GetComponentInChildren<SkinnedMeshRenderer>();
@@ -30,6 +34,7 @@ namespace AvaAvaDance
                 result="PASS standalone package->FBX->Renderer; renderers="+renderers+"; skins="+avatar.GetComponentsInChildren<SkinnedMeshRenderer>().Length+"; frame=12";
             }
             catch(Exception ex) { result="FAIL "+ex; Debug.LogException(ex); }
+            if (result.StartsWith("FAIL")) { File.WriteAllText(Path.Combine(directory,"result.txt"),result); Application.Quit(1); yield break; }
             for(int i=0;i<20;i++) yield return null;
             yield return new WaitForEndOfFrame();
             previewCamera.Render();

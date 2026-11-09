@@ -31,14 +31,15 @@ namespace AvaAvaDance.Import
         [DllImport("comdlg32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
         [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetOpenFileNameW([In, Out] OpenFileName data);
 #endif
-        public static string Open()
+        public static string Open(string title = null, string extension = "unitypackage")
         {
 #if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
             IntPtr buffer = Marshal.AllocHGlobal(65536);
             try
             {
                 Marshal.WriteInt16(buffer, 0);
-                var request = new OpenFileName { file = buffer };
+                var request = new OpenFileName { file = buffer, filter = extension + " file\0*." + extension + "\0\0", defaultExtension = extension };
+                if (title != null) request.title = title;
                 return GetOpenFileNameW(request) ? Marshal.PtrToStringUni(buffer) : null;
             }
             finally { Marshal.FreeHGlobal(buffer); }
