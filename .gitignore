@@ -125,3 +125,32 @@ InitTestScene*.unity*
 /Tests/MaterialHarness/obj/
 /Tests/liltoon-*.unitypackage
 
+# Local model, motion and project files used for verification
+*.vrm
+*.vrm.meta
+*.vrma
+*.vrma.meta
+*.pmx
+*.pmx.meta
+*.pmd
+*.pmd.meta
+*.vmd
+*.vmd.meta
+*.vpd
+*.vpd.meta
+*.avadance
+*.avadance.meta
+
+# Local build inputs and generated shader packs
+/Assets/lilToon/
+/Assets/lilToon.meta
+/ProjectSettings/lilToonSetting.json
+/Assets/AvaAvaDance/GeneratedShaderPack/
+/Assets/AvaAvaDance/GeneratedShaderPack.meta
+*.avadshader
+*.avadshader.meta
+/Assets/AvaAvaDance/Resources/MPLUS1p-Regular.ttf
+/Assets/Plugins/x86_64/*.dll
+/Native/ufbx.c
+/Native/ufbx.h
+

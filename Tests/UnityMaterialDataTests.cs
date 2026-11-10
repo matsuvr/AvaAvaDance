@@ -42,9 +42,9 @@ class UnityMaterialDataTests
         Reject(Head+"    m_Floats:\n\t- _A: 1\n","tab");
         Reject(new string('a',UnityMaterialData.MaxUtf8Bytes+1),"length bound");
         Reject(new string('日',UnityMaterialData.MaxUtf8Bytes/2),"UTF8 bound");
-        var lots=new StringBuilder(Head+"    m_Floats:\n");for(int i=0;i<512;i++)lots.Append("    - _P"+i+": 1\n");
-        Check(UnityMaterialData.Parse(lots.ToString()).Floats.Count==512,"512 properties accepted");
-        lots.Append("    - _P512: 1\n");Reject(lots.ToString(),"513 properties");
+        var lots=new StringBuilder(Head+"    m_Floats:\n");for(int i=0;i<UnityMaterialData.MaxProperties;i++)lots.Append("    - _P"+i+": 1\n");
+        Check(UnityMaterialData.Parse(lots.ToString()).Floats.Count==UnityMaterialData.MaxProperties,"lilToon property budget");
+        lots.Append("    - _Overflow: 1\n");Reject(lots.ToString(),"property budget exceeded");
         const string keywordHead="Material:\n  m_Name: keywords\n  m_Shader: {fileID: 46}\n";
         var oldKeywords=UnityMaterialData.Parse(keywordHead+"  m_ShaderKeywords: _NORMALMAP  _ALPHATEST_ON _NORMALMAP\n");
         Check(oldKeywords.Keywords.Count==2&&oldKeywords.Keywords[0]=="_NORMALMAP"&&oldKeywords.Keywords[1]=="_ALPHATEST_ON","old keywords deduplicated");

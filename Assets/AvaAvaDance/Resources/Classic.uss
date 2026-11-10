@@ -2,21 +2,34 @@
 .workspace { min-width: 1200px; min-height: 720px; flex-grow: 1; }
 .row { flex-direction: row; }
 .menu { height: 24px; background-color: rgb(240,240,240); }
-.menu Button { margin: 0; border-width: 0; background-color: transparent; padding-left: 10px; padding-right: 10px; }
+.mmd-menu-overlay { position: absolute; top: 0; bottom: 0; left: 0; right: 0; }
+.mmd-dropdown { position: absolute; background-color: rgb(247,247,247); border-width: 1px; border-color: rgb(130,130,130); padding: 1px; }
+.mmd-dropdown .mmd-menu-row { flex-direction: row; flex-shrink: 0; flex-grow: 0; height: 22px; min-height: 22px; margin: 0; border-width: 0; border-radius: 0; background-color: transparent; padding-left: 2px; align-items: center; }
+.mmd-menu-row Label { color: black; margin: 0; padding: 0; -unity-text-align: middle-left; }
+.mmd-menu-row .menu-check { width: 20px; -unity-text-align: middle-center; }
+.mmd-menu-row .menu-caption { flex-grow: 1; }
+.mmd-dropdown .menu-selection, .menu Button.open-menu { background-color: rgb(207,229,247); }
+.mmd-menu-divider { height: 6px; flex-shrink: 0; border-top-width: 1px; border-top-color: rgb(210,210,210); margin-left: 20px; }
+.menu Button { flex-grow: 0; flex-shrink: 0; margin: 0; border-width: 0; background-color: transparent; padding-left: 10px; padding-right: 10px; }
+.fullscreen-preview .menu, .fullscreen-preview .sidebar, .fullscreen-preview .bottom,
+.fullscreen-preview .transform-bar, .fullscreen-preview .status, .fullscreen-preview .viewport-title,
+.fullscreen-preview .bones-overlay, .fullscreen-preview .axis-tools { display: none; }
+.workspace.fullscreen-preview { min-width: 0; min-height: 0; }
 .main { flex-direction: row; flex-grow: 1; }
 .sidebar { width: 256px; flex-shrink: 0; padding: 3px; }
 .right { flex-grow: 1; }
 .viewport { flex-grow: 1; min-height: 380px; background-color: white; overflow: hidden; }
-.viewport-title { color: rgb(130,25,25); font-size: 16px; margin: 8px; }
+.viewport-title { color: white; background-color: rgb(77,77,77); font-size: 14px; height: 24px; padding-left: 6px; -unity-text-align: middle-left; }
 .viewport-note { color: rgb(90,90,90); margin: 8px; }
-.axis { position: absolute; right: 12px; bottom: 12px; color: rgb(30,70,130); }
 .bottom { height: 210px; flex-direction: row; padding: 2px; }
 .panel { padding: 3px; margin-right: 3px; border-width: 1px; border-color: rgb(30,30,30); flex-shrink: 0; }
 .header { color: white; -unity-text-align: middle-center; height: 19px; }
 .model { width: 148px; background-color: rgb(118,67,67); }
 .bone, .camera { width: 190px; background-color: rgb(62,61,105); }
 .morph, .light { width: 194px; background-color: rgb(55,104,49); }
-.accessory { width: 194px; background-color: rgb(105,103,45); }
+.accessory FloatField { flex-grow: 1; min-width: 0; width: 30%; margin: 1px; }
+.accessory FloatField > Label { min-width: 12px; width: auto; margin-right: 1px; }
+.accessory { width: 150px; background-color: rgb(105,103,45); }
 .playback { width: 135px; background-color: rgb(62,61,105); }
 .frame-header { background-color: rgb(118,67,67); }
 .timeline { flex-grow: 1; min-height: 240px; background-color: rgb(24,24,24); margin-top: 4px; margin-bottom: 4px; }
@@ -28,6 +41,76 @@ Button { min-height: 22px; margin: 2px; padding-left: 4px; padding-right: 4px; f
 TextField, IntegerField, FloatField, DropdownField { margin: 2px; min-height: 20px; }
 Toggle { margin: 3px; color: white; }
 .hidden { display: none; }
-.import-dialog { position: absolute; left: 15%; top: 25%; width: 70%; padding: 18px; background-color: rgb(235,235,235); border-width: 2px; border-color: black; } .import-dialog Toggle { color: black; }
+.import-dialog { position: absolute; left: 15%; top: 25%; width: 70%; max-height: 70%; padding: 18px; background-color: rgb(235,235,235); border-width: 2px; border-color: black; } .import-dialog Toggle { color: black; }
+.fbx-list { flex-grow: 0; flex-shrink: 1; min-height: 0; max-height: 240px; margin: 4px 0; background-color: rgb(248,248,248); }
+.fbx-list .unity-radio-button-group > .unity-base-field__input { height: auto; }
+.fbx-list .unity-radio-button__input { height: auto; min-height: 24px; }
+.fbx-list .unity-radio-button__text { white-space: normal; flex-shrink: 1; }
 Button { height: 24px; min-height: 24px; padding-top: 0; padding-bottom: 0; } TextField, IntegerField, FloatField, DropdownField { height: 24px; min-height: 24px; } .row > * { min-width: 0; } .panel Label { font-size: 12px; } .panel .row { min-height: 24px; } .panel Toggle { height: 20px; flex-shrink: 0; }
 .unity-base-field__input { height: 18px; min-height: 18px; padding: 0; margin: 0; -unity-text-align: middle-left; } .unity-base-text-field__input { font-size: 12px; padding: 0; } .unity-popup-field__text { margin: 0; padding: 0; -unity-text-align: middle-left; }
+
+.frame-nav Button { padding-left: 1px; padding-right: 1px; min-width: 17px; margin-left: 1px; margin-right: 1px; }
+.frame-nav IntegerField { width: 47px; }
+.timeline { overflow: hidden; }
+.ruler { height: 19px; flex-shrink: 0; background-color: rgb(165,130,90); }
+.ruler Label { margin: 0; position: absolute; font-size: 11px; }
+.track-name { margin: 0; padding-top: 0; padding-bottom: 0; flex-shrink: 0; width: 96px; height: 19px; padding-left: 4px; background-color: rgb(165,130,90); border-bottom-width: 1px; border-bottom-color: rgb(65,50,45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.selected-track { color: rgb(255,210,175); background-color: rgb(123,61,54); }
+#time-scroll SliderInt { flex-grow: 1; }
+.transform-bar { height: 32px; align-items: center; background-color: rgb(175,175,175); }
+.transform-bar Button { flex-grow: 0; }
+.transform-bar IntegerField { width: 48px; }
+.transform-bar FloatField { width: 80px; flex-shrink: 1; }
+.transform-bar FloatField > Label { min-width: 12px; width: auto; margin-right: 2px; }
+#playback-range TextField { width: 45px; flex-grow: 1; }
+.playback { width: 160px; }
+.view-buttons { flex-direction: row; flex-wrap: wrap; }
+.view-buttons Button { width: 29%; }
+.light Slider { height: 20px; margin-top: 1px; margin-bottom: 1px; }
+.light Slider > Label { min-width: 14px; width: 16px; }
+.light Slider FloatField, .camera SliderInt IntegerField { width: 44px; min-width: 36px; }
+.panel > Button { flex-grow: 0; }
+.active-tool { background-color: rgb(142,196,245); }
+.bones-overlay { position: absolute; top: 0; bottom: 0; left: 0; right: 0; }
+
+
+.morph { width: 294px; }
+.morph-grid { flex-direction: row; flex-wrap: wrap; }
+.morph-control { width: 50%; padding: 2px; }
+.morph-control .row { align-items: center; }
+.morph-control .row > Label { flex-grow: 1; color: white; }
+.morph-control Slider FloatField { width: 39px; }
+.panel Toggle > .unity-base-field__label { min-width: 0; width: auto; margin-right: 3px; flex-grow: 0; }
+.panel Toggle > .unity-base-field__input { flex-grow: 0; min-width: 16px; }
+#display-options Toggle, #play-actions Toggle { flex-shrink: 1; }
+
+#key-range IntegerField, #key-scope DropdownField { flex-grow: 1; }
+#key-range IntegerField { width: 74px; }
+
+.waveform { height: 32px; background-color: white; margin-top: 2px; }
+.volume { height: 20px; margin-top: 2px; }
+.volume > Label { min-width: 24px; width: 28px; }
+
+.axis-tools { position: absolute; right: 12px; bottom: 10px; }
+.axis-tools .row { align-items: center; }
+.axis-tools .row > Label { -unity-text-align: middle-center; }
+.axis-handle { width: 26px; height: 23px; margin: 2px; border-width: 1px; border-color: rgb(150,150,150); background-color: rgba(235,235,235,0.9); -unity-font-style: bold; font-size: 15px; }
+.axis-0 { color: rgb(175,32,40); }
+.axis-1 { color: rgb(28,123,54); }
+.axis-2 { color: rgb(30,74,177); }
+
+.modal { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: rgba(30,30,30,0.32); align-items: center; justify-content: center; }
+.dialog-body { width: 375px; max-height: 95%; padding: 12px; border-width: 1px; border-color: rgb(85,85,85); background-color: rgb(232,232,232); color: black; }
+.dialog-body .unity-scroll-view__content-container > * { flex-shrink: 0; }
+.dialog-body Toggle { color: black; }
+#dialog-title { font-size: 15px; -unity-font-style: bold; margin-bottom: 10px; }
+.self-shadow { width: 150px; background-color: rgb(96,92,92); }
+#shadow-modes Button { padding-left: 1px; padding-right: 1px; margin: 1px; }
+#ik-controls Toggle { flex-grow: 1; }
+
+#movie-range TextField { width: 76px; flex-grow: 1; }
+.self-shadow SliderInt IntegerField { width: 48px; }
+#ik-controls Toggle > Label { min-width: 0; }
+
+.camera { width: 176px; }
+.light { width: 180px; }

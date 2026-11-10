@@ -1,4 +1,4 @@
-"""Self-authored sphere/material fixture; no third-party avatar data."""
+"""Generate a sphere and a material referencing the selected shader by GUID."""
 import io,math,pathlib,tarfile,struct,zlib,sys,re
 r=pathlib.Path(__file__).resolve().parents[1]
 verts=[]; ids=[]; normals=[]
@@ -37,8 +37,8 @@ Connections: { C: "OO",100,200
  C: "OO",300,200
 }
 '''%(len(verts),','.join(map(str,verts)),len(ids),','.join(map(str,ids)),len(normals),','.join(map(str,normals)))
-variant=sys.argv[1] if len(sys.argv)>1 else "lts"
-meta=(r/"Assets/AvaAvaDance/ShaderFixtures/CustomFixture.shader.meta") if variant=="custom" else (r/"Assets/lilToon/Shader"/(variant+".shader.meta"))
+variant=sys.argv[1] if len(sys.argv)>1 else "custom"
+meta=(r/"Assets/AvaAvaDance/ShaderFixtures/CustomFixture.shader.meta") if variant=="custom" else (r/"Builds/LilToonPackProject/Assets/lilToon/Shader"/(variant+".shader.meta"))
 guid=re.search(r"guid: ([0-9a-f]{32})",meta.read_text()).group(1)
 mat='''%%YAML 1.1
 %%TAG !u! tag:unity3d.com,2011:

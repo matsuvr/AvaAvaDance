@@ -1,9 +1,13 @@
 {
   "dependencies": {
-    "com.unity.modules.uielements": "1.0.0",
-    "com.unity.modules.assetbundle": "1.0.0",
+    "com.vrmc.gltf": "https://github.com/vrm-c/UniVRM.git?path=/Packages/UniGLTF#v0.131.4",
+    "com.vrmc.vrm": "https://github.com/vrm-c/UniVRM.git?path=/Packages/VRM10#v0.131.4",
     "com.unity.modules.animation": "1.0.0",
+    "com.unity.modules.assetbundle": "1.0.0",
     "com.unity.modules.imageconversion": "1.0.0",
-    "com.unity.modules.screencapture": "1.0.0"
+    "com.unity.modules.screencapture": "1.0.0",
+    "com.unity.modules.uielements": "1.0.0",
+    "com.unity.modules.unitywebrequestaudio": "1.0.0",
+    "com.unity.modules.video": "1.0.0"
   }
 }

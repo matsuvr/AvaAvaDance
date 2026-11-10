@@ -11,11 +11,16 @@ assert 'UIDocument' in runtime and 'PanelSettings' in runtime
 assert 'Resources.Load<ThemeStyleSheet>("ClassicTheme")' in runtime
 for asset in ['Classic.uss', 'ClassicTheme.tss']:
     assert (root / 'Assets/AvaAvaDance/Resources' / asset).exists()
+timeline = (root / 'Assets/AvaAvaDance/Runtime/MotionTimeline.cs').read_text(encoding="utf-8-sig")
+scene = (root / 'Assets/AvaAvaDance/Runtime/SceneMotion.cs').read_text(encoding="utf-8-sig")
+bone = (root / 'Assets/AvaAvaDance/Runtime/BoneMotion.cs').read_text(encoding="utf-8-sig")
+morph = (root / 'Assets/AvaAvaDance/Runtime/MorphMotion.cs').read_text(encoding="utf-8-sig")
+accessories = (root / 'Assets/AvaAvaDance/Runtime/Accessories.cs').read_text(encoding='utf-8')
 for panel in ['sidebar', 'viewport', 'bone', 'morph', 'camera', 'light', 'accessory', 'playback']:
-    assert '"' + panel + '"' in runtime, panel
-assert 'Mathf.Clamp(value, 0, 10000)' in runtime
-assert 'void RefreshTimelineLabels()' in runtime
-assert 'timeline.Clear()' not in runtime.split('void DrawTimeline')[1].split('void RefreshTimelineLabels')[0]
+    assert '"' + panel + '"' in runtime + scene + bone + morph + accessories, panel
+assert 'Mathf.Clamp(value, 0, MaxFrame)' in timeline
+assert 'void RefreshTimelineLabels()' in timeline
+assert 'timeline.Clear()' not in timeline.split('void DrawTimeline')[1].split('void BuildPlayback')[0]
 assert '--- !u!104' in (root / 'Assets/Scenes/Main.unity').read_text(encoding="utf-8-sig")
 for path in (root / 'Assets').rglob('*'):
     if path.is_file() and path.suffix != '.meta':

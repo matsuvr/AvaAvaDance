@@ -11,65 +11,7 @@ namespace AvaAvaDance.Editor
     /// <summary>Build-time compiler. No shader source compilation happens in the player.</summary>
     public static class ShaderPackBuilder
     {
-        const string DisableOptimization = "LILTOON_DISABLE_OPTIMIZATION";
         const string ManifestFolder = "Assets/AvaAvaDance/GeneratedShaderPack";
-        const string ManifestPath = ManifestFolder + "/manifest.json";
-        static readonly string[] LilToonFiles = {
-            "lts.shader", "lts_o.shader", "lts_cutout.shader", "lts_cutout_o.shader", "lts_trans.shader", "lts_trans_o.shader", "ltspass_opaque.shader", "ltspass_cutout.shader", "ltspass_transparent.shader"
-        };
-
-        [MenuItem("AvaAvaDance/Shader packs/1 Prepare full-feature lilToon")]
-        public static void PrepareMenu() { PrepareLilToon(); }
-
-        // Returns false after changing scripting defines. Wait for the domain reload and invoke again.
-        public static bool PrepareLilToon()
-        {
-            RequireVersion();
-            string defines = PlayerSettings.GetScriptingDefineSymbolsForGroup(BuildTargetGroup.Standalone);
-            var values = new HashSet<string>(defines.Split(new[] {';'}, StringSplitOptions.RemoveEmptyEntries));
-            if (values.Add(DisableOptimization))
-            {
-                PlayerSettings.SetScriptingDefineSymbolsForGroup(BuildTargetGroup.Standalone, string.Join(";", values));
-                Debug.Log("AVA_SHADER_PREPARE_RELOAD: wait for script compilation, then run Prepare again.");
-                return false;
-            }
-#if !LILTOON_DISABLE_OPTIMIZATION
-            throw new InvalidOperationException("Wait for script compilation with LILTOON_DISABLE_OPTIMIZATION before building shader packs.");
-#else
-            string package = "Assets/lilToon/package.json";
-            if (!File.Exists(package) || !File.ReadAllText(package).Contains("\"2.4.1\""))
-                throw new InvalidOperationException("Expected the pinned official lilToon 2.4.1 at Assets/lilToon.");
-            var setting = ScriptableObject.CreateInstance<lilToonSetting>();
-            try
-            {
-                setting.isDebugOptimize = false;
-                lilToonSetting.TurnOnAllShaderSetting(ref setting);
-                lilToonSetting.SaveShaderSetting(setting);
-                if (!EditorApplication.ExecuteMenuItem("Assets/lilToon/[Shader] Refresh shaders"))
-                    throw new InvalidOperationException("Official lilToon refresh command was not available.");
-                // Deterministically generate all source and UsePass dependencies using the official public API.
-                foreach (var source in Directory.GetFiles("Assets/lilToon/BaseShaderResources", "*.lilinternal"))
-                {
-                    string target = "Assets/lilToon/Shader/" + Path.GetFileNameWithoutExtension(source) + ".shader";
-                    File.WriteAllText(target, lilToon.lilShaderContainer.UnpackContainer(source.Replace("\\\\", "/"), null, false));
-                    AssetDatabase.ImportAsset(target, ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate);
-                }
-                AssetDatabase.SaveAssets();
-                AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
-                Debug.Log("AVA_SHADER_PREPARED: all lilToon shader settings enabled; optimization disabled.");
-                return true;
-            }
-            finally { UnityEngine.Object.DestroyImmediate(setting); }
-#endif
-        }
-
-        [MenuItem("AvaAvaDance/Shader packs/2 Build bundled lilToon")]
-        public static void BuildLilToon()
-        {
-            if (!PrepareLilToon()) throw new InvalidOperationException("Scripting define changed. Run BuildLilToon again after domain reload.");
-            var paths = LilToonFiles.Select(f => "Assets/lilToon/Shader/" + f).ToArray();
-            Build(paths, "Assets/StreamingAssets/liltoon.avadshader");
-        }
 
         [MenuItem("AvaAvaDance/Shader packs/Build selected shaders for Windows")]
         public static void BuildSelected()
@@ -82,7 +24,7 @@ namespace AvaAvaDance.Editor
             Build(paths, output);
         }
 
-        public static void Build(IReadOnlyList<string> shaderPaths, string output)
+        public static void Build(IReadOnlyList<string> shaderPaths, string output, VpmPackageIdentity package = null)
         {
             RequireVersion();
             if (shaderPaths == null || shaderPaths.Count < 1 || shaderPaths.Count > 64)
@@ -94,7 +36,7 @@ namespace AvaAvaDance.Editor
                 if (shader == null) throw new InvalidOperationException("Shader asset missing: " + path);
                 entries.Add(new ShaderPackEntry { guid = AssetDatabase.AssetPathToGUID(path), name = shader.name, assetPath = path });
             }
-            var manifest = new ShaderPackManifest { schema = 1, target = ShaderLibrary.Target, unity = ShaderLibrary.UnityVersion, pipeline = ShaderLibrary.Pipeline, graphicsApi = ShaderLibrary.GraphicsApi, shaders = entries.ToArray() };
+            var manifest = new ShaderPackManifest { schema = 1, target = ShaderLibrary.Target, unity = ShaderLibrary.UnityVersion, pipeline = ShaderLibrary.Pipeline, graphicsApi = ShaderLibrary.GraphicsApi, shaders = entries.ToArray(), vpmPackage = package };
             ShaderLibrary.ValidateManifest(manifest);
             string destination = Path.GetFullPath(output);
             if (!string.Equals(Path.GetExtension(destination), ".avadshader", StringComparison.OrdinalIgnoreCase))

@@ -26,6 +26,16 @@ Objects: {
  Version: 232
  Properties70: { P: "Lcl Translation", "Lcl Translation", "", "A",0,1,0 }
  }
+ Geometry: 600, "Geometry::Blink", "Shape" {
+ Indexes: *1 { a: 2 }
+ Vertices: *3 { a: 0,0.5,0 }
+ }
+ Deformer: 601, "Deformer::Face", "BlendShape" { Version: 100 }
+ Deformer: 602, "SubDeformer::Blink", "BlendShapeChannel" {
+ Version: 100
+ DeformPercent: 0
+ FullWeights: *1 { a: 100 }
+ }
  Deformer: 400, "Deformer::Skin", "Skin" { Version: 101
  SkinningType: "Linear"
  }
@@ -40,6 +50,9 @@ Objects: {
 Connections: { C: "OO",100,200
  C: "OO",200,0
  C: "OO",300,0
+ C: "OO",600,602
+ C: "OO",602,601
+ C: "OO",601,100
  C: "OO",400,100
  C: "OO",500,400
  C: "OO",300,500

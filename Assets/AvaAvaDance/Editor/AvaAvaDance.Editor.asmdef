@@ -1,1 +1,1 @@
-{"name":"AvaAvaDance.Editor","rootNamespace":"AvaAvaDance.Editor","references":["AvaAvaDance.Runtime","lilToon.Editor"],"includePlatforms":["Editor"],"autoReferenced":true}
+{"name":"AvaAvaDance.Editor","rootNamespace":"AvaAvaDance.Editor","references":["AvaAvaDance.Runtime"],"includePlatforms":["Editor"],"autoReferenced":true}

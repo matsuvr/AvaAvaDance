@@ -39,6 +39,11 @@ class UnityPackageReaderTests
         if(list.Count!=1 || list[0].Data.Length!=3 || list[0].Meta!="fileFormatVersion: 2" || list[0].Guid!=G)throw new Exception("Round-trip failed");tests++;
         var folders=UnityPackageReader.Read(new MemoryStream(Package(P("Assets/Avatar"),Member(G+"/asset.meta",Bytes("folderAsset: yes")))));
         if(folders[0].HasAsset)throw new Exception("Folder payload invented");tests++;
+        var vpm=UnityPackageReader.Read(new MemoryStream(Package(Member("./",new byte[0],'5'),Member("./"+G+"/",new byte[0],'5'),Member("./"+G+"/pathname",Bytes("Assets/installer/config.json")),A())));
+        if(vpm.Count!=1 || vpm[0].Path!="Assets/installer/config.json")throw new Exception("VPM tar prefix");tests++;
+        TestVpmInstaller();
+        Reject("normalized duplicate",Package(P("Assets/a"),A(),Member("./"+G+"/asset",new byte[]{4})));
+        Reject("prefixed traversal",Package(Member("./../asset",new byte[0])));
         foreach(var path in new[]{"../escape", "/absolute", "C:/absolute", "Assets/../escape", "Assets\\escape", "Assets//x", "Assets/./x", "Assets/x\0", "Assets/x.", "Assets/x "})Reject("path "+path,Package(P(path),A()));
         foreach(var type in new[]{'1','2','3','4','6','x','g','L','K'})Reject("type "+type,Package(Member(G+"/asset",new byte[0],type),P("Assets/a")));
         Reject("bad checksum",Package(Member(G+"/asset",new byte[0],'0',true),P("Assets/a")));
@@ -61,5 +66,27 @@ class UnityPackageReaderTests
         for(int i=0;i<many.Length;i++) many[i]=Member(i.ToString("x32")+"/",new byte[0],'5');
         Reject("too many members",Package(many));
         Console.WriteLine("PASS "+tests+" reader checks");
+    }
+
+    static void TestVpmInstaller()
+    {
+        var installed = new VpmPackageIdentity { name=VpmInstaller.LilToon, repo=VpmInstaller.OfficialRepository, version="2.4.1" };
+        string Config(string range) => "{\"vpmRepositories\":[\""+installed.repo+"\"],\"vpmDependencies\":{\"jp.lilxyzw.liltoon\":\""+range+"\"}}";
+        void Accept(string json) {
+            if (!VpmInstaller.Resolve(Bytes(json), installed, "2022.3.22f1").Contains("lilToon 2.4.1"))
+                throw new Exception("Expected a compatible VPM package");
+            tests++;
+        }
+        void Refuse(string json) {
+            try { VpmInstaller.Resolve(Bytes(json), installed, "2022.3.22f1"); throw new Exception("VPM config should fail: "+json); }
+            catch (InvalidDataException) { tests++; }
+        }
+        foreach (var range in new[]{"2.x.x","2.4.*","2.4.1","^2.3.0","~2.4.0",">=2.0.0 <3.0.0"}) Accept(Config(range));
+        Accept(Config("2.x").Replace("\""+installed.repo+"\"", "{\"url\":\""+installed.repo+"\"}"));
+        Accept(Config("*"));
+        foreach (var range in new[]{"1.x.x","3.0.0","~2.3.0","2.x.1"}) Refuse(Config(range));
+        Refuse(Config("2.x").Replace(installed.repo, "https://example.invalid/index.json"));
+        Refuse(Config("2.x").Replace("\"2.x\"", "\"2.x\",\"org.example.other\":\"1\""));
+        Refuse(Config("2.x").Insert(1, "\"minimumUnity\":\"6000.0\","));
     }
 }

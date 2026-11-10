@@ -11,7 +11,7 @@ namespace AvaAvaDance.Import
     public sealed class UnityMaterialData
     {
         public const int MaxUtf8Bytes = 2 * 1024 * 1024;
-        public const int MaxProperties = 512;
+        public const int MaxProperties = 2048;
         public struct Float2 { public float X, Y; public Float2(float x, float y) { X=x; Y=y; } }
         public struct Float4 { public float R, G, B, A; public Float4(float r,float g,float b,float a) { R=r;G=g;B=b;A=a; } }
         public sealed class TextureReference

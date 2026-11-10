@@ -7,7 +7,7 @@ for n in ['ava_nodes','ava_vertices']:
 dll.ava_mesh.argtypes=[C.c_void_p,C.c_int,C.POINTER(C.c_float),C.POINTER(C.c_int),C.POINTER(C.c_int),C.c_int]
 dll.ava_transform.argtypes=[C.c_void_p,C.c_int,C.POINTER(C.c_float)]
 dll.ava_free.argtypes=[C.c_void_p]
-with tarfile.open(r/'Tests/liltoon-lts.unitypackage') as t:data=t.extractfile('1'*32+'/asset').read()
+with tarfile.open(r/'Tests/liltoon-custom.unitypackage') as t:data=t.extractfile('1'*32+'/asset').read()
 e=C.create_string_buffer(2048);s=dll.ava_load(data,len(data),e,len(e));assert s,e.value
 try:
  for n in range(dll.ava_nodes(s)):

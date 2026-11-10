@@ -87,6 +87,11 @@ namespace AvaAvaDance.Import
                     long size = Octal(header, 124, 12);
                     if (size > MaxFileBytes) throw Bad("Tar member exceeds 256 MiB.");
                     if (size > MaxExpandedBytes - expanded) throw Bad("Package exceeds expanded size limit.");
+                    // VPM auto-installers created with tar use ./ and ./<guid>/.
+                    bool directory = type == (byte)'5';
+                    if (directory && size != 0) throw Bad("Directory member has a payload.");
+                    if (directory && (name == "./" || name == ".")) continue;
+                    if (name.StartsWith("./", StringComparison.Ordinal)) name = name.Substring(2);
                     string guid, member;
                     ParseMemberName(name, type == (byte)'5', out guid, out member);
                     if (!seen.Add(name)) throw Bad("Duplicate tar member.");
