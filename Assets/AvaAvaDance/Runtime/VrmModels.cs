@@ -21,20 +21,27 @@ namespace AvaAvaDance
                 throw new InvalidDataException("VRM のサイズが範囲外です。");
             var bytes = new byte[(int)stream.Length];
             ReadFully(stream, bytes, bytes.Length);
-            return new Asset(Guid.NewGuid().ToString("N"), Path.GetFileName(path), bytes, null);
+            return new Asset(Guid.NewGuid().ToString("N"), Path.GetFileName(path), bytes, null){ContainerPath=Path.GetFullPath(path)};
         }
 
-        static Vrm10Instance LoadVrm(byte[] bytes)
+        Vrm10Instance LoadVrm(byte[] bytes,List<MissingMaterialShader> missing)
         {
-            using var data = new GlbBinaryParser(bytes, "avatar").Parse();
+            // Coordinate conversion during import can modify the GLB buffer in place.
+            using var data = new GlbBinaryParser((byte[])bytes.Clone(), "avatar").Parse();
             if (data.GLTF.buffers.Any(b => !Embedded(b.uri)) || data.GLTF.images.Any(i => !Embedded(i.uri)))
                 throw new InvalidDataException("画像とバッファを内蔵した VRM を選択してください。");
             // Use the original skeleton as the editable rig. A generated control rig
             // would overwrite the local rotations applied by the timeline each frame.
             var vrm = Vrm10.LoadGltfDataAsync(data, canLoadVrm0X: true,
-                controlRigGenerationOption: ControlRigGenerationOption.None, awaitCaller: new ImmediateCaller())
+                controlRigGenerationOption: ControlRigGenerationOption.None, awaitCaller: new ImmediateCaller(),
+                materialGenerator: new VrmMaterialGenerator(data,shaderLibrary,missing))
                 .GetAwaiter().GetResult();
             if (vrm == null) throw new InvalidDataException("VRM モデルを読み込めません。");
+            if(missing.Count>0)
+            {
+                var used=vrm.GetComponentsInChildren<Renderer>(true).SelectMany(r=>r.sharedMaterials).ToHashSet();
+                missing.RemoveAll(request=>!used.Contains(request.Material));
+            }
             if (vrm.TryGetComponent<Animator>(out var animator)) animator.enabled = false;
             return vrm;
         }
@@ -44,19 +51,15 @@ namespace AvaAvaDance
         static Dictionary<HumanBodyBones, Transform> MapHumanBones(GameObject root, Vrm10Instance vrm, string meta)
         {
             var result = new Dictionary<HumanBodyBones, Transform>();
-            var names = HumanoidPreview.BoneMap(meta);
-            var nodes = root.GetComponentsInChildren<Transform>(true).ToLookup(t => t.name, StringComparer.OrdinalIgnoreCase);
+            if (vrm == null)
+            {
+                var nodes = root.GetComponentsInChildren<Transform>(true);
+                return HumanoidSkeletonMotion.Map(nodes.Select(t=>t.name).ToArray(),HumanoidPreview.BoneMap(meta))
+                    .ToDictionary(k=>k.Key,k=>nodes[k.Value]);
+            }
             for (var id = HumanBodyBones.Hips; id < HumanBodyBones.LastBone; id++)
             {
-                if (vrm != null)
-                {
-                    if (vrm.TryGetBoneTransform(id, out var t)) result.Add(id, t);
-                    continue;
-                }
-                string name = id.ToString();
-                if (!names.TryGetValue(name, out var mapped)) names.TryGetValue(HumanTrait.BoneName[(int)id], out mapped);
-                var matches = nodes[mapped ?? name];
-                if (matches.Count() == 1) result.Add(id, matches.First());
+                if (vrm.TryGetBoneTransform(id, out var t)) result.Add(id, t);
             }
             return result;
         }

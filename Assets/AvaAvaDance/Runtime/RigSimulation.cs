@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Ava.Extensions;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -45,7 +46,9 @@ namespace AvaAvaDance
         void PreviewIK(bool enabled)
         {
             if (CurrentIK == null) return;
-            StopPlayback(); SetIKEnabled(CurrentIK,enabled);
+            StopPlayback();
+            if(ribbonProfile && !enabled && actor.modelSwitch.Current.Enabled(CurrentIK.Handle.Track.Name)){ReleaseIKToDraft(CurrentIK);SyncRigControls();return;}
+            SetIKEnabled(CurrentIK,enabled);
             InvalidateDynamics(); RefreshRigPreview(); SyncRigControls();
         }
         void SetIKEnabled(LimbIK chain,bool enabled)
@@ -122,7 +125,7 @@ namespace AvaAvaDance
             var track = new MotionTrack<BonePose>(unique,BonePose.Rest,BonePose.Blend,p=>{
                 target.localPosition=rest+p.Position; target.localRotation=rotation*p.Rotation;
             });
-            var binding = new BoneBinding { Joint=target, Track=track };
+            var binding = new BoneBinding { Joint=target, Track=track, RestRotation=rotation, EditingBasis=Quaternion.identity };
             var chain = new LimbIK { Upper=upper, Lower=lower, Tip=tip, Handle=binding };
             if (lower != null) {
                 var bend = Vector3.ProjectOnPlane(lower.position-upper.position, (tip.position-upper.position).normalized);
@@ -152,6 +155,7 @@ namespace AvaAvaDance
 
         void SolveIK()
         {
+            ApplyPelvisControls();
             foreach (var c in actor.ikChains) {
                 if (!actor.modelSwitch.Current.Enabled(c.Handle.Track.Name)) continue;
                 Vector3 target = c.Handle.Joint.position;
@@ -190,7 +194,18 @@ namespace AvaAvaDance
             actor.dynamicLinks.Sort((a,b)=>actor.bones.IndexOf(a.Bone).CompareTo(actor.bones.IndexOf(b.Bone)));
         }
 
-        void InvalidateDynamics() { ClearBullet(); actor.simTick=-1; actor.simulationCache.Clear(); foreach(var d in actor.dynamicLinks)d.State=default; }
+        static void ClearSimulation(Actor item)
+        {
+            item.simTick=-1;item.simulationCache.Clear();foreach(var link in item.dynamicLinks)link.State=default;
+        }
+        void InvalidateDynamics(){ClearBullet();ClearSimulation(actor);}
+        List<Actor> InvalidateChangedActors(IEnumerable<KeyChange> changes)
+        {
+            var tracks=new HashSet<MotionTrack>(changes.Select(c=>c.Track));
+            var affected=drawOrder.Where(a=>a.modelTracks.Any(tracks.Contains) || tracks.Contains(gravityTrack)).ToList();
+            ClearBullet();foreach(var item in affected)ClearSimulation(item);
+            return affected;
+        }
         void RestoreSimulation(int tick)
         {
             int index=actor.simulationCache.Count-1;
@@ -220,15 +235,17 @@ namespace AvaAvaDance
         void RefreshRigPreview()
         {
             foreach (var b in actor.bones) b.Track.Preview(b.Track.Current);
-            SolveIK(); RedrawOverlay();
+            SolveIK();ApplyLinks(); RedrawOverlay();
         }
 
         void EvaluateAnimation(float time, bool running)
         {
+            evaluationTime=time;
             SyncVideo(time);
             if(physicsEngine==PhysicsEngine.Bullet)EvaluateBullet(time,running);
             else ForEachActor(calculationOrder,()=>EvaluateActor(time,running));
-            foreach(var track in sceneTracks)track.Seek(time);
+            ApplyLinks();foreach(var track in sceneTracks)track.Seek(time);
+            EmitEvaluation(EvaluationStage.AfterSceneAndAccessories,time);
             visibilityToggle.SetValueWithoutNotify(actor.avatar!=null && actor.avatar.activeSelf);
         }
         void EvaluateActor(float time,bool running)
@@ -240,15 +257,20 @@ namespace AvaAvaDance
                 while (actor.simTick<tick) {
                     actor.simTick++;
                     float sample=actor.simTick*.5f;
+                    EmitEvaluation(EvaluationStage.BeforeTrackSample,sample,true,actor.id);
                     foreach (var b in actor.bones) b.Track.Seek(sample);
                     actor.modelSwitch?.Seek(sample);
-                    gravityTrack.Seek(sample); SolveIK(); StepDynamics(actor.simTick, true); CacheSimulation();
+                    gravityTrack.Seek(sample);EmitEvaluation(EvaluationStage.AfterTrackSampleBeforeIK,sample,true,actor.id);SolveIK();
+                    EmitEvaluation(EvaluationStage.AfterIKBeforePhysics,sample,true,actor.id);StepDynamics(actor.simTick,true);
+                    EmitEvaluation(EvaluationStage.AfterPhysics,sample,true,actor.id);CacheSimulation();
                 }
             } else InvalidateDynamics();
-            gravityTrack.Seek(time);
+            EmitEvaluation(EvaluationStage.BeforeTrackSample,time,false,actor.id);gravityTrack.Seek(time);
             foreach (var track in actor.modelTracks) track.Seek(time);
-            SolveIK();
+            EmitEvaluation(EvaluationStage.AfterTrackSampleBeforeIK,time,false,actor.id);SolveIK();
+            EmitEvaluation(EvaluationStage.AfterIKBeforePhysics,time,false,actor.id);
             if (simulate) StepDynamics(tick,false);
+            EmitEvaluation(EvaluationStage.AfterPhysics,time,false,actor.id);
         }
 
         void IdleDynamics()

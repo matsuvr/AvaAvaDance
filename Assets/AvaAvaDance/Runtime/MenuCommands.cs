@@ -23,8 +23,8 @@ namespace AvaAvaDance
             Bind(Command.ExportImage, () => FileAction("画像ファイルに出力", DirectXImage.Extensions, true, ExportImage));
             Bind(Command.LoadPose, () => FileAction("ポーズデータ読込", "vpd", false, LoadVpd), ModelBones);
             Bind(Command.SavePose, () => FileAction("ポーズデータ保存", "vpd", true, SaveVpd), ModelBones);
-            Bind(Command.LoadMotion, () => FileAction("モーションデータ読込", "vmd;vrma;avamotion", false, ImportMotionFile));
-            Bind(Command.SaveMotion, () => FileAction("モーションデータ保存", modelMode ? "vmd;vrma" : "vmd", true, SaveMotionFile));
+            Bind(Command.LoadMotion, () => FileAction("モーションデータ読込", "vmd;vrma;bvh;fbx;anim;avamotion", false, ImportMotionFile));
+            Bind(Command.SaveMotion, () => FileAction("モーションデータ保存", "avamotion", true, SaveMotion));
             Bind(Command.LoadAvaMotion, () => FileAction("AvaAvaDanceモーション読込", "avamotion", false, LoadMotion));
             Bind(Command.SaveAvaMotion, () => FileAction("AvaAvaDanceモーション保存", "avamotion", true, SaveMotion));
             Bind(Command.LoadWave, () => FileAction("WAVファイル読込", "wav", false, p => StartCoroutine(LoadWave(p))), () => !loadingWave);
@@ -40,15 +40,14 @@ namespace AvaAvaDance
 
         void ImportMotionFile(string path)
         {
-            if (path.EndsWith(".vrma", StringComparison.OrdinalIgnoreCase)) LoadVrma(path);
-            else if (path.EndsWith(".avamotion", StringComparison.OrdinalIgnoreCase)) LoadMotion(path);
-            else LoadVmd(path, frame);
-        }
-
-        void SaveMotionFile(string path)
-        {
-            if (path.EndsWith(".vrma", StringComparison.OrdinalIgnoreCase)) SaveVrma(path);
-            else SaveVmd(path);
+            switch (System.IO.Path.GetExtension(path).ToLowerInvariant())
+            {
+                case ".vrma": LoadVrma(path); break;
+                case ".bvh": case ".fbx": case ".anim": LoadHumanoidMotion(path); break;
+                case ".avamotion": LoadMotion(path); break;
+                case ".vmd": LoadVmd(path, frame); break;
+                default: throw new System.IO.InvalidDataException("対応するモーションファイルを選択してください。");
+            }
         }
 
         void BindEditCommands()

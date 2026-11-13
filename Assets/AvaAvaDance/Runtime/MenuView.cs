@@ -22,7 +22,7 @@ namespace AvaAvaDance
             public Color shadowTint = Color.white;
         }
         ViewOptions viewOptions = new ViewOptions();
-        readonly PreviewWindow detached = new PreviewWindow();
+        PreviewWindow detached;
         bool previewTop;
         Label infoLabel;
         int fpsLimit = 60;
@@ -70,6 +70,7 @@ namespace AvaAvaDance
 
         void InitView()
         {
+            detached=new PreviewWindow(this,()=>previewTexture);
             infoLabel = new Label { pickingMode = PickingMode.Ignore }; viewport.Add(infoLabel);
             infoLabel.style.position = Position.Absolute; infoLabel.style.left = 8; infoLabel.style.top = 30;
             Camera.onPreRender += BeginViewRender; Camera.onPostRender += EndViewRender;
@@ -78,8 +79,8 @@ namespace AvaAvaDance
 
         void BeginViewRender(Camera c) { if (c == previewCamera) { originalWireframe = GL.wireframe; if (viewOptions.wireframe) GL.wireframe = true; } }
         void EndViewRender(Camera c) { if (c == previewCamera) GL.wireframe = originalWireframe; }
-        void ApplyFrameLimit() { QualitySettings.vSyncCount = 0; Application.targetFrameRate = savePower && !Application.isFocused ? 5 : fpsLimit; }
-        void OnApplicationFocus(bool focus) { ApplyFrameLimit(); if (!focus) CloseMenu(); }
+        void ApplyFrameLimit() { QualitySettings.vSyncCount = 0; Application.targetFrameRate = savePower && !Application.isFocused && !lastToolFocus ? 5 : fpsLimit; }
+        void OnApplicationFocus(bool focus) { ApplyFrameLimit(); ReleaseWorkspaceInput(focus); if (!focus) CloseMenu(); }
         void ApplyFiltering() => QualitySettings.anisotropicFiltering = viewOptions.noAniso ? AnisotropicFiltering.Disable : AnisotropicFiltering.ForceEnable;
         void UpdateViewInfo()
         {
@@ -90,9 +91,9 @@ namespace AvaAvaDance
         void DisposeView()
         {
             Camera.onPreRender -= BeginViewRender; Camera.onPostRender -= EndViewRender;
-            if(screenImage!=null){screenImage.Release();Destroy(screenImage);}
-            foreach(var prop in props)if(prop.Object!=null)Destroy(prop.Object);
-            detached.Dispose(); RestoreModelDisplay(); DisposeBackdrop();
+            previewHistory.Dispose();movieHistory.Dispose();
+            accessoryMaterials.Clear();foreach(var prop in props)if(prop.Object!=null)Destroy(prop.Object);
+            detached?.Dispose(); RestoreModelDisplay(); DisposeBackdrop();
         }
         void RestoreModelDisplay()
         {

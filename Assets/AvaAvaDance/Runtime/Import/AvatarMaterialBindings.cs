@@ -13,6 +13,8 @@ namespace AvaAvaDance.Import
         internal sealed class Slots
         {
             internal bool Visible;
+            internal int CastShadows;
+            internal bool ReceiveShadows;
             internal string[] Materials;
         }
 
@@ -56,6 +58,8 @@ namespace AvaAvaDance.Import
             var transforms = new Dictionary<string, (string owner, string parent)>();
             var parents = new Dictionary<string, string>();
             var renderers = new List<(string owner, Slots slots)>();
+            var meshFilters = new HashSet<string>();
+            var staticRenderers = new List<(string owner, Slots slots)>();
             var docs = Regex.Split(Encoding.UTF8.GetString(bytes), @"(?m)^--- !u!");
             foreach (string doc in docs)
             {
@@ -76,19 +80,31 @@ namespace AvaAvaDance.Import
                         parents[owner.Groups[1].Value] = parent.Groups[1].Value;
                     }
                 }
-                else if (doc.StartsWith("137 &", StringComparison.Ordinal))
+                else if (doc.StartsWith("137 &", StringComparison.Ordinal) || doc.StartsWith("33 &", StringComparison.Ordinal) ||
+                         doc.StartsWith("23 &", StringComparison.Ordinal))
                 {
-                    var mesh = Regex.Match(doc, @"(?m)^  m_Mesh: [^\r\n]*\bguid: ([a-fA-F0-9]{32})");
-                    if (!string.Equals(mesh.Groups[1].Value, modelGuid, StringComparison.OrdinalIgnoreCase)) continue;
                     var owner = Regex.Match(doc, @"(?m)^  m_GameObject: \{fileID: (-?\d+)\}");
-                    var list = Regex.Match(doc, @"(?m)^  m_Materials:\r?\n((?:  - [^\r\n]+\r?\n){1,64})");
-                    if (!owner.Success || !list.Success) continue;
-                    var slots = list.Groups[1].Value.TrimEnd().Split('\n').Select(s => GuidField.Match(s).Groups[1].Value).ToArray();
-                    renderers.Add((owner.Groups[1].Value, new Slots {
+                    if (!owner.Success) continue;
+                    bool meshRenderer = doc.StartsWith("23 &", StringComparison.Ordinal);
+                    if (!meshRenderer)
+                    {
+                        var mesh = Regex.Match(doc, @"(?m)^  m_Mesh: [^\r\n]*\bguid: ([a-fA-F0-9]{32})");
+                        if (!string.Equals(mesh.Groups[1].Value, modelGuid, StringComparison.OrdinalIgnoreCase)) continue;
+                        if (doc.StartsWith("33 &", StringComparison.Ordinal)) { meshFilters.Add(owner.Groups[1].Value); continue; }
+                    }
+                    var list = Regex.Match(doc, @"(?m)^  m_Materials:(?: \[\]\r?$|\r?\n((?:  - [^\r\n]+\r?\n){1,256})(?!  - ))");
+                    if (!list.Success) continue;
+                    var slots = list.Groups[1].Success ? list.Groups[1].Value.TrimEnd().Split('\n')
+                        .Select(s => s.TrimEnd().EndsWith("{fileID: 0}", StringComparison.Ordinal) ? null : GuidField.Match(s).Groups[1].Value).ToArray()
+                        : Array.Empty<string>();
+                    var cast = Regex.Match(doc, @"(?m)^  m_CastShadows: ([0-3])\r?$");
+                    (meshRenderer ? staticRenderers : renderers).Add((owner.Groups[1].Value, new Slots {
+                        CastShadows = cast.Success ? cast.Groups[1].Value[0] - '0' : 1,
+                        ReceiveShadows = !Regex.IsMatch(doc, @"(?m)^  m_ReceiveShadows: 0\r?$"),
                         Visible = !Regex.IsMatch(doc, @"(?m)^  m_Enabled: 0\r?$"), Materials = slots }));
                 }
             }
-            foreach (var item in renderers)
+            foreach (var item in renderers.Concat(staticRenderers.Where(r => meshFilters.Contains(r.owner))))
             {
                 if (!objects.TryGetValue(item.owner, out var obj)) continue;
                 item.slots.Visible &= obj.active;

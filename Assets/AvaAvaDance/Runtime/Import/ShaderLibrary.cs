@@ -17,15 +17,19 @@ namespace AvaAvaDance.Import
         public ShaderPackEntry[] shaders;
         public VpmPackageIdentity vpmPackage;
     }
+    [Serializable] public sealed class ShaderPassProfile {public string name,lightMode,usePass;public bool grab;}
+    [Serializable] public sealed class GrabProfile {public int beforePass;public string texture;}
     [Serializable] public sealed class ShaderPackEntry
     {
         public string guid;
         public string name;
         public string assetPath;
+        public GrabProfile[] grabPasses;
+        public ShaderPassProfile[] passes;
     }
 
-    /// <summary>Loads trusted, precompiled shaders only. Never compiles package source or instantiates bundle objects.</summary>
-    public sealed class ShaderLibrary : IDisposable
+    /// <summary>Loads precompiled Unity shader assets from runtime shader packs.</summary>
+    public sealed partial class ShaderLibrary : IDisposable
     {
         public const string ManifestAsset = "avadance-shader-manifest";
         public const string UnityVersion = "2022.3.22f1";
@@ -39,6 +43,9 @@ namespace AvaAvaDance.Import
         readonly Dictionary<string, (AssetBundle bundle, ShaderPackManifest manifest, byte[] bytes)> packs = new();
         readonly Dictionary<string, (ShaderPackManifest manifest, byte[] bytes)> selected = new();
         static readonly Regex GuidPattern = new Regex("^[a-fA-F0-9]{32}$", RegexOptions.CultureInvariant);
+        partial void ReadCompiledPasses(ShaderPackManifest manifest,byte[] data);
+        internal ShaderPassProfile[] Passes(Shader shader)=>packs.Values.SelectMany(p=>p.manifest.shaders).FirstOrDefault(s=>s.name==shader.name)?.passes;
+        internal GrabProfile[] GrabPasses(Shader shader) => packs.Values.SelectMany(p=>p.manifest.shaders).FirstOrDefault(s=>s.name==shader.name)?.grabPasses;
         internal IEnumerable<byte[]> ProjectPacks => packs.Values.Select(pack => pack.bytes);
         bool disposed, quitting;
         public ShaderLibrary() { Application.quitting += OnQuitting; }
@@ -62,7 +69,7 @@ namespace AvaAvaDance.Import
             {
                 // A saved project takes precedence over overlapping session shaders.
                 if (LoadedLilToon != null && pack.manifest.vpmPackage?.name == VpmInstaller.LilToon) continue;
-                if (pack.manifest.shaders.All(entry => Resolve(entry.guid, entry.name) == null))
+                if (pack.manifest.shaders.Any(entry => Resolve(entry.guid) == null))
                     LoadPack(pack.bytes);
             }
         }
@@ -98,12 +105,15 @@ namespace AvaAvaDance.Import
                 if (isLilToon && (LoadedLilToon != null || manifest.vpmPackage.repo != VpmInstaller.OfficialRepository ||
                     !Version.TryParse(manifest.vpmPackage.version, out _)))
                     throw new InvalidDataException("Invalid or duplicate lilToon VPM identity.");
+                ReadCompiledPasses(manifest,bytes);
                 var addedGuid = new Dictionary<string, Shader>(StringComparer.OrdinalIgnoreCase);
                 var addedName = new Dictionary<string, Shader>(StringComparer.Ordinal);
                 foreach (var entry in manifest.shaders)
                 {
-                    if (byGuid.ContainsKey(entry.guid) || byName.ContainsKey(entry.name))
-                        throw new InvalidDataException("A shader with this GUID or name is already registered: " + entry.name);
+                    if (byGuid.TryGetValue(entry.guid,out var existingShader) && existingShader.name==entry.name)
+                        continue; // Packs can share a dependency. Keep existing material instances bound to it.
+                    if (existingShader!=null || byName.ContainsKey(entry.name))
+                        throw new InvalidDataException("Conflicting shader GUID or name: " + entry.name);
                     // Never use LoadAllAssets(), LoadAsset<GameObject>(), or instantiate bundle content.
                     var shader = bundle.LoadAsset<Shader>(entry.assetPath);
                     if (shader == null || !string.Equals(shader.name, entry.name, StringComparison.Ordinal) || !shader.isSupported)
@@ -117,7 +127,7 @@ namespace AvaAvaDance.Import
                 bundle = null;
                 if (rememberSelection) selected[key] = (manifest, bytes);
                 if (isLilToon) LoadedLilToon = manifest.vpmPackage;
-                return manifest.shaders.Length;
+                return addedGuid.Count;
             }
             finally { if (bundle != null) bundle.Unload(true); }
         }
@@ -149,6 +159,18 @@ namespace AvaAvaDance.Import
             ThrowIfDisposed();
             if (!string.IsNullOrEmpty(guid) && byGuid.TryGetValue(guid, out var shader)) return shader;
             return !string.IsNullOrEmpty(exactName) && byName.TryGetValue(exactName, out shader) ? shader : null;
+        }
+        readonly BundledShaderCatalog bundled = Resources.Load<BundledShaderCatalog>("BundledShaderCatalog");
+        internal bool IsAvailableMaterialShader(Shader shader) => byGuid.ContainsValue(shader) ||
+            (bundled!=null && bundled.entries.Any(entry=>entry.shader==shader));
+        internal Shader ResolveMaterial(string guid, long fileId, string exactName)
+        {
+            // A serialized .mat identifies an asset, including built-in subassets with a shared GUID.
+            // VRM 0 materialProperties identifies a shader by its exact ShaderLab name.
+            Shader shader = exactName == null
+                ? (fileId == 4800000 ? Resolve(guid) : null) ?? bundled?.Find(guid,fileId)
+                : Resolve(null,exactName) ?? Shader.Find(exactName);
+            return shader != null && shader.isSupported ? shader : null;
         }
         void ThrowIfDisposed() { if (disposed) throw new ObjectDisposedException(nameof(ShaderLibrary)); }
         /// <summary>Destroy all materials using these shaders before disposing the library.</summary>

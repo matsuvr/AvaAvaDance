@@ -16,6 +16,12 @@ namespace AvaAvaDance
             {
                 var asset = ReadVrmFile(path);
                 ImportModel(asset, new List<Asset> { asset }, null);
+                var offline=System.Threading.Tasks.Task.Run(()=>RigFiles.Read(path)).GetAwaiter().GetResult().Single();
+                string hash;using(var sha=System.Security.Cryptography.SHA256.Create())hash=Convert.ToBase64String(sha.ComputeHash(asset.Data));
+                var crown=offline.Find("headTop");var liveCrown=actor.rigProfile.Find("headTop");
+                Check(offline.sourceHash==hash && actor.rigProfile.sourceHash==hash,"VRM source hash");
+                Check(crown?.origin=="weightedVertex" && liveCrown?.origin=="weightedVertex","VRM head measurement");
+                Check(offline.shapes.Length==actor.rigProfile.shapes.Length,"VRM collider count");
                 Check(actor.shadowCasters.SelectMany(r => r.sharedMaterials)
                     .All(m => m != null && m.shader.isSupported && m.shader.name != "Hidden/InternalErrorShader"), "VRM material");
                 int history = undo.Count;
@@ -68,7 +74,7 @@ namespace AvaAvaDance
             var draft = edited; draft.Rotation = Quaternion.Euler(45, 12, 4);
             selectedHead.Preview(draft);
             string exported = Path.Combine(dir, "edited.vrma");
-            SaveMotionFile(exported);
+            SaveVrma(exported);
             Check(frame == 15 && Quaternion.Angle(selectedHead.Current.Rotation, draft.Rotation) < .1f, "Export preserves draft");
             SetFrame(42);
             ImportMotionFile(exported);
@@ -99,7 +105,7 @@ namespace AvaAvaDance
                 var head = actor.bones.Single(b => b.Joint == actor.humanBones[HumanBodyBones.Head]);
                 Check(Mathf.Abs(Quaternion.Angle(head.Track.Current.Rotation, Quaternion.identity)-60) < .1f, "Humanoid FBX retarget");
                 string clip = Path.Combine(dir, "humanoid.vrma");
-                SaveMotionFile(clip);
+                SaveVrma(clip);
                 int start = LastFrame()+1;
                 SetFrame(start); ImportMotionFile(clip); SetFrame(start+15);
                 Check(head.Track.KeyAt(start+15) != null, "Humanoid FBX export and reimport");

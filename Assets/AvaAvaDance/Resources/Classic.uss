@@ -10,6 +10,10 @@
 .mmd-menu-row .menu-caption { flex-grow: 1; }
 .mmd-dropdown .menu-selection, .menu Button.open-menu { background-color: rgb(207,229,247); }
 .mmd-menu-divider { height: 6px; flex-shrink: 0; border-top-width: 1px; border-top-color: rgb(210,210,210); margin-left: 20px; }
+.menu-space { flex-grow: 1; }
+.dialog-body.shader-license-dialog { width: 700px; max-width: 95%; }
+.shader-license-description { white-space: normal; margin-bottom: 6px; }
+.shader-license-text { height: 280px; margin-top: 6px; margin-bottom: 8px; background-color: white; border-width: 1px; border-color: rgb(150,150,150); padding: 6px; }
 .menu Button { flex-grow: 0; flex-shrink: 0; margin: 0; border-width: 0; background-color: transparent; padding-left: 10px; padding-right: 10px; }
 .fullscreen-preview .menu, .fullscreen-preview .sidebar, .fullscreen-preview .bottom,
 .fullscreen-preview .transform-bar, .fullscreen-preview .status, .fullscreen-preview .viewport-title,
@@ -35,6 +39,12 @@
 .timeline { flex-grow: 1; min-height: 240px; background-color: rgb(24,24,24); margin-top: 4px; margin-bottom: 4px; }
 .interpolation { height: 150px; flex-direction: row; margin-top: 5px; }
 .curve { width: 125px; height: 125px; background-color: white; }
+.ribbon-workspace .interpolation { height: 194px; }
+.curve-palette .row > Button { min-width: 20px; margin-left: 1px; margin-right: 1px; padding-left: 3px; padding-right: 3px; }
+.timeline-curve { height: 86px; flex-shrink: 0; margin-left: 4px; margin-right: 4px; }
+.curve-lane { height: 65px; }
+#curve-axis { width: 96px; flex-shrink: 0; }
+.timeline-segment { flex-grow: 1; width: auto; height: 65px; overflow: hidden; }
 .interpolation-controls { flex-grow: 1; }
 .status { height: 22px; background-color: rgb(235,235,235); padding-left: 6px; }
 Button { min-height: 22px; margin: 2px; padding-left: 4px; padding-right: 4px; flex-grow: 1; }
@@ -76,6 +86,8 @@ Button { height: 24px; min-height: 24px; padding-top: 0; padding-bottom: 0; } Te
 
 .morph { width: 294px; }
 .morph-grid { flex-direction: row; flex-wrap: wrap; }
+#weight-edit Slider { flex-grow: 1; min-width: 18px; }
+#weight-edit FloatField { width: 38px; }
 .morph-control { width: 50%; padding: 2px; }
 .morph-control .row { align-items: center; }
 .morph-control .row > Label { flex-grow: 1; color: white; }
@@ -114,3 +126,57 @@ Button { height: 24px; min-height: 24px; padding-top: 0; padding-bottom: 0; } Te
 
 .camera { width: 176px; }
 .light { width: 180px; }
+.profile-bar, .ribbon, .ribbon-transport { background-color: rgb(239,240,245); flex-shrink: 0; }
+.profile-bar Button, .ribbon Button, .ribbon-transport Button { flex-grow: 0; padding-left: 8px; padding-right: 8px; }
+.profile-bar > Button { flex-shrink: 0; }
+#shader-add.missing-shaders { background-color: rgb(255,213,111); color: rgb(53,34,0); border-width: 2px; border-color: rgb(183,109,0); -unity-font-style: bold; }
+#shader-add.missing-shaders:hover { background-color: rgb(255,229,155); }
+.profile-bar .active-tool, .ribbon-tabs .active-tool { background-color: rgb(198,222,243); }
+.ribbon-tabs { background-color: rgb(229,231,239); }
+.ribbon-tools { min-height: 65px; align-items: stretch; }
+.ribbon-group { padding-left: 3px; padding-right: 3px; border-right-width: 1px; border-right-color: rgb(184,190,200); }
+.ribbon-group > Label { -unity-text-align: middle-center; font-size: 11px; }
+.ribbon-group .row { flex-grow: 1; align-items: center; }
+.ribbon-icon { width: 24px; height: 24px; flex-shrink: 0; }
+.ribbon-group Button { min-height: 52px; height: 52px; align-items: center; flex-direction: column; background-color: rgb(238,240,246); white-space: normal; }
+.workspace.ribbon-workspace { min-width: 1000px; background-color: rgb(226,229,235); }
+.ribbon-workspace .sidebar { width: 35%; background-color: rgb(238,239,243); border-width: 1px; border-color: rgb(192,197,205); }
+.ribbon-workspace .frame-header, .ribbon-workspace .sidebar .header { background-color: rgb(226,229,235); color: black; -unity-text-align: middle-left; }
+.ribbon-workspace .viewport { min-height: 300px; }
+.ribbon-workspace .viewport-title { color: rgb(39,71,142); background-color: rgb(235,237,243); }
+.ribbon-workspace .timeline { background-color: rgb(201,204,209); }
+.ribbon-workspace .timeline .ruler, .ribbon-workspace .timeline .track-name { background-color: rgb(113,118,127); color: white; }
+.ribbon-workspace .timeline .selected-track { background-color: rgb(186,111,119); }
+.panel-space { height: 210px; flex-shrink: 0; }
+.classic-bottom { position: absolute; bottom: 22px; left: 256px; right: 0; }
+.ribbon-transport TextField { width: 52px; }
+.ribbon-transport Toggle { color: black; }
+.panel-targets { width: 78px; }
+.panel-targets Button { flex-grow: 0; }
+.fullscreen-preview .panel-space { display: none; }
+.ribbon-workspace .bottom { background-color: rgb(237,238,243); height: 184px; }
+.ribbon-workspace .panel { background-color: rgb(237,238,243); border-color: rgb(198,201,211); }
+.ribbon-workspace .panel .header, .ribbon-workspace .panel Label, .ribbon-workspace .panel Toggle { color: black; }
+.ribbon-workspace #history, .ribbon-workspace #key-edit, .ribbon-workspace #key-scope,
+.ribbon-workspace #key-range, .ribbon-workspace .playback { display: none; }
+.ribbon-transport { flex-direction: row; align-items: center; padding: 2px; }
+.ribbon-transport SliderInt { width: 240px; min-width: 70px; max-width: 500px; flex-grow: 1; }
+.ribbon-workspace .model { width: 186px; }
+.ribbon-workspace .bone { width: 240px; }
+.ribbon-workspace .morph { width: 345px; }
+.fullscreen-preview .profile-bar, .fullscreen-preview .ribbon, .fullscreen-preview .ribbon-transport { display: none; }
+.ribbon-workspace .dock-audio { flex-grow: 1; min-height: 160px; background-color: rgb(245,246,248); }
+.ribbon-workspace #timeline-tabs Button, .ribbon-workspace #audio-controls Button { flex-grow: 0; padding-left: 9px; padding-right: 9px; }
+.ribbon-workspace #timeline-tabs { flex-shrink: 0; background-color: rgb(230,232,238); }
+.ribbon-workspace .frame-header { height: 26px; padding-top: 4px; }
+.floating-editor { flex-grow: 1; background-color: rgb(238,239,243); color: rgb(24,25,28); padding: 4px; }
+.floating-editor .row { min-height: 28px; flex-shrink: 0; align-items: center; margin-bottom: 3px; }
+.floating-editor Button { min-width: 65px; min-height: 24px; flex-grow: 1; }
+.floating-editor TextField { flex-grow: 1; flex-basis: 0; min-width: 65px; }
+.floating-editor TextField Label { min-width: 22px; width: 22px; padding-left: 3px; }
+.floating-editor #float-frame Label { min-width: 52px; }
+.floating-board { flex-grow: 1; min-height: 50px; overflow: hidden; background-color: rgb(203,206,212); }
+#floating-wave { background-color: rgb(246,247,250); }
+.floating-board .ruler, .floating-board .track-name { background-color: rgb(113,118,127); color: white; }
+.floating-board .selected-track { background-color: rgb(186,111,119); }
+.floating-heading { height: 24px; -unity-font-style: bold; margin-left: 4px; }

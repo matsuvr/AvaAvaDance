@@ -9,7 +9,7 @@ namespace AvaAvaDance
     public sealed partial class DanceApp
     {
         bool localAxes = true;
-        readonly HashSet<BoneBinding> boneSelection = new HashSet<BoneBinding>();
+        readonly List<BoneBinding> boneSelection = new List<BoneBinding>();
         void SyncAxes()
         {
             foreach (var handle in axisTools.Query<Label>().ToList())
@@ -36,32 +36,66 @@ namespace AvaAvaDance
             else RegisterKey(selectedTrack);
         }
 
-        MotionTrack OriginalTarget(MotionTrack source) => VisibleTracks.Contains(source)?source:
-            modelMode?actor.modelTracks.Find(t=>t.Name==source.Name && t.GetType()==source.GetType()):null;
-        bool CanPasteOriginal() => keyClipboard.Count>0 && frame+keyClipboard.Last().Frame-keyClipboard[0].Frame<=MaxFrame
-            && keyClipboard.Any(k=>OriginalTarget(k.Track)!=null);
+        MotionTrack OriginalTarget(MotionTrack source)
+        {
+            if(VisibleTracks.Contains(source))return source;
+            if(!modelMode)return null;
+            var owner=drawOrder.Find(a=>a.modelTracks.Contains(source));
+            if(owner==null)return null;
+            var bone=owner.bones.Find(b=>b.Track==source);
+            if(bone==null || (owner.modelGuid==actor.modelGuid && owner.prefabGuid==actor.prefabGuid))
+                return actor.modelTracks.Find(t=>t.GetType()==source.GetType() && t.Name==source.Name);
 
+            if(owner.humanBones!=null)
+                foreach(var role in owner.humanBones.Where(p=>p.Value==bone.Joint)){
+                    if(actor.humanBones!=null && actor.humanBones.TryGetValue(role.Key,out var mapped))
+                        return actor.bones.Find(b=>b.Joint==mapped)?.Track;
+                    string alias=Ava.Extensions.RigProfile.MotionAlias(role.Key.ToString());
+                    var candidates=actor.bones.Where(b=>b.Joint.name==alias).ToArray();
+                    if(candidates.Length==1)return candidates[0].Track;
+                }
+            if(actor.humanBones!=null)
+                foreach(var role in actor.humanBones)
+                    if(Ava.Extensions.RigProfile.MotionAlias(role.Key.ToString())==bone.Joint.name)
+                        return actor.bones.Find(b=>b.Joint==role.Value)?.Track;
+            // Match the authored hierarchy as well as the leaf name (two outfits can both have a "tip").
+            bool SameBranch(Transform a,Transform b){
+                while(a!=owner.avatar.transform && b!=actor.avatar.transform){
+                    if(a==null || b==null || a.name!=b.name)return false;
+                    a=a.parent;b=b.parent;
+                }
+                return a==owner.avatar.transform && b==actor.avatar.transform;
+            }
+            var matches=actor.bones.Where(b=>SameBranch(bone.Joint,b.Joint)).ToArray();
+            return matches.Length==1?matches[0].Track:null;
+        }
+
+        bool PreparePaste(bool mirror,List<KeyChange> edits=null,List<string> missing=null)
+        {
+            if(keyClipboard.Count==0)return false;
+            int first=keyClipboard[0].Frame;bool found=false;
+            foreach(var group in keyClipboard.GroupBy(k=>k.Track)){
+                var track=OriginalTarget(group.Key);
+                if(mirror && track is MotionTrack<BonePose>)track=MirroredTrack(track);
+                if(track==null || !track.LocalTime(frame,out int local)){missing?.Add(group.Key.Name);continue;}
+                foreach(var key in group){
+                    int at=local+key.Frame-first;if(at<0 || at>MaxFrame)return false;
+                    if(edits!=null){
+                        var value=mirror && key.After is BonePose pose?(object)MirrorPose(pose):key.After;
+                        edits.Add(new KeyChange{Track=track,Layer=track.ActiveLayer,Frame=at,DocumentFrame=frame,After=value,
+                            ReplaceSource=true,AfterSource=track==key.Track?key.AfterSource:null});
+                    }
+                    found=true;
+                }
+            }
+            return found;
+        }
+        bool CanPasteOriginal()=>PreparePaste(false);
         void PasteOriginalKeys(bool mirror)
         {
-            if (!CanPasteOriginal()) return;
-            var edits = new List<KeyChange>();
-            foreach (var key in keyClipboard)
-            {
-                var track = OriginalTarget(key.Track); if(track==null)continue;
-                var value = key.After;
-                if (mirror && value is BonePose pose)
-                {
-                    string name = track.Name, target = name.StartsWith("左") ? "右" + name.Substring(1) :
-                        name.StartsWith("右") ? "左" + name.Substring(1) :
-                        name.StartsWith("Left", StringComparison.OrdinalIgnoreCase) ? "Right" + name.Substring(4) :
-                        name.StartsWith("Right", StringComparison.OrdinalIgnoreCase) ? "Left" + name.Substring(5) : name;
-                    track = actor.bones.Find(b => b.Track.Name.Equals(target, StringComparison.OrdinalIgnoreCase))?.Track;
-                    if (track == null) continue;
-                    pose.Position.x *= -1; pose.Rotation.y *= -1; pose.Rotation.z *= -1; value = pose;
-                }
-                edits.Add(new KeyChange { Track = track, Frame = frame + key.Frame - keyClipboard[0].Frame, After = value });
-            }
-            CommitKeys(edits);
+            var edits=new List<KeyChange>();var missing=new List<string>();
+            if(PreparePaste(mirror,edits,missing))CommitKeys(edits);
+            if(missing.Count>0)status.text="貼付先を特定できなかった行　"+missing.Count+"件　"+string.Join("、",missing);
         }
 
         void NumericTransform()
@@ -90,8 +124,8 @@ namespace AvaAvaDance
                 var keys = track.Frames;
                 for (int i = 1; i < keys.Count; i++)
                 {
-                    var p = track.KeyAt(keys[i]);
-                    if (Equals(track.KeyAt(keys[i - 1]), p) && (i + 1 == keys.Count || Equals(track.KeyAt(keys[i + 1]), p)))
+                    var p = track.SnapshotKey(keys[i]);
+                    if (Equals(track.SnapshotKey(keys[i - 1]), p) && (i + 1 == keys.Count || Equals(track.SnapshotKey(keys[i + 1]), p)))
                         edits.Add(new KeyChange { Track = track, Frame = keys[i] });
                 }
             }
@@ -131,7 +165,7 @@ namespace AvaAvaDance
                 var edits = new List<KeyChange>();
                 foreach (var (track, f) in keys) {
                     object value = track.KeyAt(f);
-                    if (value is float weight && morphs) value = Mathf.Clamp01(weight * scale.value);
+                    if (value is float weight && morphs) value = track.WithCurve(f, Mathf.Clamp01(weight * scale.value));
                     else if (value is BonePose bonePose && (command == Command.AdjustBones || centerOnly)) {
                         bonePose.Position = centerOnly ? bonePose.Position + Values(pos) : Adjust(bonePose.Position, pos, offset);
                         if (!centerOnly) bonePose.Rotation = Quaternion.Euler(Adjust(SignedAngles(bonePose.Rotation), rot, angleOffset));
@@ -166,8 +200,8 @@ namespace AvaAvaDance
                     if (keys.Any(f => (long)f + amount.value < 1 || (long)f + amount.value > MaxFrame))
                     { error.text = "移動先が範囲外です。"; return; }
                     var result = keys.ToDictionary(f => f, _ => (object)null);
-                    foreach (int f in keys) result[f + amount.value] = track.KeyAt(f);
-                    edits.AddRange(result.Select(p => new KeyChange { Track = track, Frame = p.Key, After = p.Value }));
+                    foreach (int f in keys) result[f + amount.value] = track.SnapshotKey(f);
+                    edits.AddRange(result.Select(p => new KeyChange { Track = track, Frame = p.Key, After = p.Value,ReplaceSource=true,AfterSource=p.Value==null?null:track.SourceAt(p.Key-amount.value) }));
                 }
                 CommitKeys(edits); CloseDialog();
             });

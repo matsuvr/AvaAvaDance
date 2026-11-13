@@ -16,5 +16,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Native compile failed' }
 $target = Join-Path $PSScriptRoot '..\Assets\Plugins\x86_64'
 New-Item -ItemType Directory -Force $target | Out-Null
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'build\Release\AvaFbx.dll') -Destination $target
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'build\Release\AvaRenderBridge.dll') -Destination $target
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'build\Release\AvaClassicUi.dll') -Destination $target
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'build\Release\AvaMp4.dll') -Destination $target
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'build\Release\AvaBullet.dll') -Destination $target

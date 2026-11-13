@@ -1,3 +1,4 @@
+using MmdText = Ava.Extensions.MmdText;
 using System;
 using System.Collections.Generic;
 using System.IO;

@@ -1,6 +1,6 @@
 # Windows runtime plugins
 
-The Windows x64 player loads three plugins from `Assets/Plugins/x86_64/`. Their wrappers, `ava_fbx.c`, `ava_bullet.cpp` and `ava_mp4.cpp`, use the project's [MIT license](../LICENSE).
+The Windows x64 player loads its native libraries from `Assets/Plugins/x86_64/`. AvaClassicUi hosts tool windows on their own STA threads. The editing windows forward keyboard, IME and pointer events to their UI Toolkit panels. AvaRenderBridge presents their textures on Direct3D 11 and submits surface draw commands. The application wrappers use the project's [MIT license](../LICENSE).
 
 ## Build
 
@@ -11,7 +11,7 @@ python Tools/restore_inputs.py
 powershell -File Native/build.ps1
 ```
 
-The script builds Release DLLs with the static MSVC runtime and copies them into the Unity project. Its first run fetches the Bullet sources with Git into `Native/build/bullet-3.25/` and verifies the selected revision.
+The script builds Release DLLs with the static MSVC runtime and copies them into the Unity project. The render bridge uses the Unity Editor's PluginAPI headers for graphics-device reset and shutdown notifications. Set `UNITY_PLUGIN_API` to the `Editor/Data/PluginAPI` directory when the Editor is in a custom location. Its first run fetches the Bullet sources with Git into `Native/build/bullet-3.25/` and verifies the selected revision.
 
 ## FBX import
 

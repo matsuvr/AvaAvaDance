@@ -12,6 +12,7 @@ namespace AvaAvaDance
         {
             public DropdownField List;
             public Slider Weight;
+            public FloatField Number;
             public VisualElement Control;
             public List<MotionTrack<float>> Tracks = new List<MotionTrack<float>>();
             public MotionTrack<float> Current => List.index >= 0 && List.index < Tracks.Count ? Tracks[List.index] : null;
@@ -32,7 +33,13 @@ namespace AvaAvaDance
                 header.Add(new Label(MorphCategories[i]));
                 Action(header, "登録", true, () => RegisterKey(group.Current));
                 group.List = Choice(control, new[] { "なし" });
-                group.Weight = new Slider(0, 1) { showInputField = true }; control.Add(group.Weight);
+                var weights=Box(control,"weight-edit","row");
+                group.Weight=new Slider(0,1); weights.Add(group.Weight);
+                group.Number=new FloatField{isDelayed=true,formatString="0.###"};weights.Add(group.Number);
+                group.Number.RegisterValueChangedCallback(e=>{
+                    if(group.Current==null || !float.IsFinite(e.newValue)){SyncMorphControls();return;}
+                    StopPlayback();group.Current.Preview(e.newValue);SelectTrack(group.Current);
+                });
                 group.List.RegisterValueChangedCallback(_ => { if (group.Current != null) SelectTrack(group.Current); });
                 group.Weight.RegisterValueChangedCallback(e =>
                 {
@@ -60,7 +67,7 @@ namespace AvaAvaDance
             {
                 var expressions = actor.vrm.Runtime.Expression;
                 foreach (var key in expressions.ExpressionKeys)
-                    if (!key.IsLookAt) AddMorph(key.Name, weight => expressions.SetWeight(key, weight));
+                    if (!key.IsLookAt) AddMorph(key.Name, weight => expressions.SetWeight(key, Mathf.Clamp01(weight)));
             }
             else BindMeshMorphs();
             foreach (var group in morphGroups)
@@ -71,9 +78,9 @@ namespace AvaAvaDance
             SyncMorphControls();
         }
 
-        void AddMorph(string name, Action<float> apply)
+        void AddMorph(string name, Action<float> apply,float initial=0)
         {
-            var track = new MotionTrack<float>("表情：" + name, 0, Mathf.Lerp, apply);
+            var track = new MotionTrack<float>("表情：" + name, initial, Mathf.Lerp, apply);
             actor.modelTracks.Add(track);
             morphGroups[MorphCategory(name)].Tracks.Add(track);
         }
@@ -110,7 +117,8 @@ namespace AvaAvaDance
                 group.List.SetEnabled(group.Tracks.Count > 1);
                 if (selectedTrack is MotionTrack<float> selected && group.Tracks.Contains(selected))
                     group.List.SetValueWithoutNotify(selected.Name.Substring(3));
-                group.Weight.SetValueWithoutNotify(group.Current?.Current ?? 0);
+                group.Weight.SetValueWithoutNotify(Mathf.Clamp01(group.Current?.Current ?? 0));
+                group.Number.SetValueWithoutNotify(group.Current?.Current ?? 0);
             }
         }
     }

@@ -30,6 +30,7 @@ namespace AvaAvaDance
         [DllImport(Dll,CallingConvention=CallingConvention.Cdecl)] static extern int ava_bullet_allow(BulletWorld world,int collider,int body);
         [DllImport(Dll,CallingConvention=CallingConvention.Cdecl)] static extern int ava_bullet_joint(BulletWorld world,int parent,int child,ref Pose pivot,ref Vector3 limits,float spring,float damping);
         [DllImport(Dll,CallingConvention=CallingConvention.Cdecl)] static extern void ava_bullet_drive(BulletWorld world,int id,int follow,ref Pose target);
+        [DllImport(Dll,CallingConvention=CallingConvention.Cdecl)] static extern void ava_bullet_transport(BulletWorld world,int body,int anchor,ref Pose delta);
         [DllImport(Dll,CallingConvention=CallingConvention.Cdecl)] static extern void ava_bullet_step(BulletWorld world,ref Vector3 gravity);
         [DllImport(Dll,CallingConvention=CallingConvention.Cdecl)] static extern void ava_bullet_read(BulletWorld world,int id,out Pose pose);
 
@@ -51,6 +52,7 @@ namespace AvaAvaDance
                 throw new InvalidOperationException("Bulletジョイントを作成できません。");
         }
         internal void Drive(int id,bool follow,Pose target) => ava_bullet_drive(this,id,follow?1:0,ref target);
+        internal void Transport(int body,int anchor,Pose delta) => ava_bullet_transport(this,body,anchor,ref delta);
         internal void Step(Vector3 gravity) => ava_bullet_step(this,ref gravity);
         internal Pose Read(int id) { ava_bullet_read(this,id,out var pose);return pose; }
     }

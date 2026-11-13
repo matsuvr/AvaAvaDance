@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework><OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="../../Assets/Plugins/x86_64/AvaClassicUi.dll;../../Assets/Plugins/x86_64/AvaRenderBridge.dll"
+          Condition="Exists('../../Assets/Plugins/x86_64/AvaClassicUi.dll') and Exists('../../Assets/Plugins/x86_64/AvaRenderBridge.dll')"
+          Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <ProjectReference Include="../../Extensions/MotionTools/Ava.MotionTools.csproj" />
+    <ProjectReference Include="../../Extensions/SurfaceEffects/Ava.SurfaceEffects.csproj" />
+  </ItemGroup>
+</Project>

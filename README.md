@@ -2,7 +2,7 @@
 
 AvaAvaDance は Windows x64 用のアバターアニメーション編集アプリです。Unity 2022.3.22f1 で開発しています。VRM または unitypackage からモデルを読み込み、タイムラインでポーズ・表情・カメラを編集し、画像や動画に書き出せます。
 
-画面は MikuMikuDance を参考に、左にタイムライン、右にビューポート、下に操作パネルを配置しています。[MikuMikuDance 作者配布ページ](https://sites.google.com/view/vpvp/)
+MikuMikuDance と MikuMikuMoving、そして両作品の作者に敬意を表します。
 
 ## Windows版の起動
 
@@ -12,7 +12,19 @@ AvaAvaDance は Windows x64 用のアバターアニメーション編集アプ�
 2. unitypackage の場合は、一覧からアバターのprefabと表示するFBXの組を選びます。複数のprefabが同じFBXを使う場合も個別に選択できます。「FBXのみ」は対応するprefabを検出できなかったモデルです。
 3. ビューポートのボーン、左の行、または「ボーン操作」のリストから編集対象を選びます。
 
-外部シェーダーを使う場合は、先に「シェーダー追加」で `.avadshader` を選び、その後「モデル操作 → 読込」でアバターを開きます。lilToon用のパックを公式配布物から作る手順は[シェーダーパック仕様](Docs/shader-packs.md)に記載しています。
+外部シェーダーは右上の「シェーダー追加」から導入できます。**lilToon** と **VRM (MToon / MToon10)** はメニューを選び、ライセンスと第三者の権利表示に同意すると、公式VPM／GitHubからダウンロードして適用します。読み込み済みモデルの対応する材質もその場で更新します。その他は「その他のシェーダー」から `.unitypackage` または `.avadshader` を選びます。[導入・ビルドの詳細](Docs/shader-packs.md)
+
+VRM 1.0 の MToon・Unlit・PBR は材質ごとに読み分けます。モデルが使うシェーダーが不足している間は、どちらの操作レイアウトでも右上の「シェーダー追加（不足あり）」が黄色になります。メニューの「不足しているシェーダーを確認…」で該当するモデルと材質を確認できます。追加したパックは対応する材質だけに適用されます。
+
+## 編集画面
+
+上端の **MikuMikuDance風** と **MikuMikuMoving風** で、メニュー形式とリボン形式を切り替えます。どちらからも同じ作品を編集できます。たとえばリボンで腕の位置を調整し、メニュー形式に切り替えて「登録」を押し、再びリボンで `Ctrl+Z` を押すと登録前の姿勢に戻ります。「キー設定」では画面ごとに割当を保存でき、タイムラインやビューポートだけで使うキーも選べます。
+
+リボンではボーン、カメラ、アクセサリを選び、「＋レイヤー」で位置と回転を重ねられます。上端の「編集対象」で登録先を選びます。「クリップ」ではソース範囲、配置、反復回数、ブレンドとタイムワープを指定できます。時間スケールを2にすると倍の長さで再生します。反復は回数指定と無限反復から選べます。「ビュー」からタイムライン窓とオーディオ窓を開くと、各窓から同じ再生位置を操作できます。同じモーションソースを使うクリップにはキー編集が共有されます。ひとつだけ変えるときは、クリップ設定の「ソースを複製」を使います。表情キーの補間は、終点キーを選んで補間曲線の制御点を動かすと編集できます。
+
+リボンでは `Ctrl+X` がキーの切り取り、`Ctrl+Y` がやり直しです。`Ctrl+M` でブックマークを付け、`Ctrl+,` と `Ctrl+.` で前後に移動します。タイムラインの中ドラッグで表示位置、Alt＋ホイールで時間軸の倍率を変えられます。
+
+タイムラインの「区間の補間」で、選んだトラックの曲線をフレームに沿って編集できます。番号ボタンは保存した曲線を選択キーへ適用します。「ALL」は選択キーの移動XYZと回転を同じ形にそろえます。「パレット設定」で6枠と新規キーの既定曲線を保存できます。
 
 ## ポーズを付けて再生する
 
@@ -27,9 +39,9 @@ AvaAvaDance は Windows x64 用のアバターアニメーション編集アプ�
 - 左のフレーム操作で先頭、前後の登録キー、最終キーに移動できます。タイムライン上のホイールで行、Shift＋ホイールで表示フレームをスクロールします。
 - 「縦選択」は同じフレームにあるキーをまとめて選択します。「範囲選択」は指定範囲の登録キーを対象にします。コピー、ペースト、削除、「元に戻す」「やり直し」はまとめて操作できます。フレーム0のキーは保持されます。
 - 「編集」の空フレーム挿入・列フレーム削除は、ボーン／表情またはカメラ／照明を個別にずらします。挿入／削除は `I`・`K` と `U`・`J`、全表情登録は `H` です。
-- **VRMAを読み込む**には、モデル編で開始フレームに移動し、「ファイル → モーションデータ読込」から `.vrma` を選びます。モデルの体格に合わせて腰移動とボーンの回転を変換し、対応する表情と視線も30 fpsのタイムラインに入ります。たとえば42フレームで1秒のモーションを開くと、42～72フレームを編集できます。「両目」の回転でVRMの視線を変えられます。足の動きに関係するIKは「表示・IK」キーで自動的にOFFになります。
-- **VRMAを書き出す**には、モデル編でポーズを「登録」し、「ファイル → モーションデータ保存」のファイルの種類で **VRMA** を選びます。選択中のモデルの登録済みモーションを先頭から書き出します。ボーンと足IKの結果は30 fpsでサンプリングし、表情と視線も格納します。カメラ・音声・アクセサリは `.avadance` で保存できます。
-- 同じ「モーションデータ読込／保存」でVMD、「ポーズデータ読込／保存」でVPDを扱います。VMDはモデル編では名前が一致するボーン・表情・表示／IK、カメラ編ではカメラ・照明・セルフ影のキーを現在フレームから読み込みます。VPDは現在のポーズに適用します。独自形式の `.avamotion` はファイルメニューの「AvaAvaDanceモーション読込／保存」で扱います。
+- **Humanoid モーションを読み込む**には、モデル編で開始フレームに移動し、「ファイル → モーションデータ読込」から `.vrma`、`.bvh`、`.fbx`、Unity の `.anim` を選びます。腰移動と関節回転を選択モデルの体格に合わせ、30 fps の編集キーに変換します。たとえば42フレームで1秒のモーションを開くと、42～72フレームを編集できます。足の動きに関係するIKは「表示・IK」キーで自動的にOFFになります。VRMAでは対応する表情と視線も取り込みます。
+- **モーションを保存する**には「ファイル → モーションデータ保存」で `.avamotion` を選びます。同じモデルに再読込でき、元のモーションファイルは不要です。モデルやカメラ、音声も含めたシーン全体は `.avadance` で保存できます。
+- 「モーションデータ読込」はVMDにも対応します。モデル編では名前が一致するボーン・表情・表示／IK、カメラ編ではカメラ・照明・セルフ影のキーを現在フレームから読み込みます。「ポーズデータ読込／保存」ではVPDを扱います。
 - ファイル、編集、表示、背景、表情、物理演算、ヘルプの各メニューは、順に `Alt+F/D/V/B/M/P/H` で開きます。括弧内のキーで項目を選択できます。「ヘルプ → モデル拡張」にはモデル別の設定をまとめています。「ヘルプ → English Mode」でメニューを英語に切り替え、各トラックに設定した英語名を表示できます。
 - `P` で再生／停止、`Ctrl+Z/X` で元に戻す／やり直し、`Ctrl+←/→` で前後の登録キーに移動します。`Tab`／`Shift+Tab` はカメラ編と各モデルを順送り／逆送り、`Z/X/C` は移動／回転／選択、`L` は座標系、`G` は「セット」したフレームへの移動です。
 - モデルを追加して「背景 → モデル描画順／モデル計算順」から順番を設定できます。アクセサリ操作でDirectXの `.x` または `.vac` を開き、親ボーン・位置・角度・サイズ・透明度を登録できます。X読込にはWindowsの `d3dx9_43.dll` が必要です。
@@ -47,15 +59,25 @@ AvaAvaDance は Windows x64 用のアバターアニメーション編集アプ�
 - **モデル拡張** では英語名、トゥーンテクスチャ、関節の物理設定を編集できます。変更はプロジェクトに保存します。
 - **MP4** は「表示 → 出力サイズ」で録画サイズを決め、「ファイル → MP4ファイルに出力」で保存先を選びます。続く「MP4出力設定」でフレームレート、録画フレームの開始・終了、WAVE出力を指定して「OK」を押します。両端を含む30 fpsタイムラインから指定fpsでサンプリングし、録画用カメラの絵をH.264、音声を48 kHzステレオAACで書き出します。録画用カメラにはモデル、背景、照明、影が映ります。出力をキャンセルすると元のファイルが残ります。Windows Media Foundationを使用し、通常の出力操作に外部エンコーダーのインストールは不要です。
 
+## Codex・Claude Code から操作する
+
+Windows 版と Unity Editor の Play Mode は MCP 接続に対応しています。[uv](https://docs.astral.sh/uv/getting-started/installation/) を用意し、このリポジトリのルートで Codex または Claude Code を開いてください。プロジェクト設定に `avaavadance` が登録されています。「AvaAvaDance を起動して現在のシーンを確認して」「カメラを30フレーム目に移動してプレビューを見せて」と依頼できます。配布版の登録方法、操作例、取得できる状態は [MCP 操作ガイド](Docs/mcp.md) にあります。
+
+## 拡張機能
+
+「プラグイン → VMDサイジング」で、モーション、作成元モデル、変換先モデルを指定して VMD を書き出せます。「CSV」タブは VMD をボーン、モーフ、カメラに分けます。「VMD」タブはボーンとモーフを一つのモデル VMD に、カメラを別の VMD に書き出します。
+
+「AvaAvaEffect → エフェクト割当」で、モデルまたは展開した材質に FX を割り当てます。「更新」を押すと現在の割当がキャンセル時の復帰先になります。FX ソースは設定とともに作品に保存されます。Windows 版を移動するときは、同梱の `Extensions` フォルダーも一緒にコピーしてください。[拡張の作成](Docs/extensions.md)
+
 ## 直接読込の対応範囲
 
 - gzip/tar と GUID/pathname をアプリ内で読み取り、FBX を ufbx で解析。
 - FBX の階層 / TRS / mesh / normal / UV / 材質スロット / skin / bindpose / 最大4 weight、FBX blend shape の頂点位置差分を Unity ランタイムオブジェクトへ再構築。
-- 選択したprefabでFBXを参照するSkinnedMeshRendererの材質スロット・表示設定を読み、FBXの `.meta` にある材質マッピング、材質名の順に照合します。PNGをGUIDで割り当てます。
+- 選択したprefabでFBXを直接参照するSkinnedMeshRenderer、またはMeshFilterとMeshRendererの材質スロット・表示・影設定を読みます。prefabの割り当てがない場合はFBXの `.meta` にある材質マッピング、材質名の順に照合します。導入済みのシェーダーは材質自身の色・マスク・パスでセルフ影を描画します。
 - 材質のシェーダーGUIDを利用者が読み込んだパックと照合します。未登録のGUIDにはプレビュー材質を割り当て、件数を表示します。
 - Windows版のUIにはビルド時に取得した M PLUS 1p Regular を使用します。
 
-VRMA 1.0 はファイル内の先頭のアニメーションを読み込みます。VRM 0.x / 1.0 ではモデルに定義されたヒューマノイド・表情の対応表を使います。unitypackage のFBXには、Humanoidの対応表または標準ボーン名で特定できた関節と、名前が対応する表情を適用します。全身のVRMA書き出しには必須のヒューマノイドボーンが必要です。
+VRMA 1.0 は先頭のアニメーション、FBX は先頭のテイクを読み込みます。VRM 0.x / 1.0 ではモデルのヒューマノイド・表情の対応表を使います。BVH・FBX は Unity Humanoid 名と Mixamo 系のボーン名に対応し、FBX の隣に Unity の `.fbx.meta` があればそのボーン対応表を優先します。Unity の `.anim` は Animator の筋肉・ルートカーブを持つクリップに対応し、対象モデルには Humanoid の必須ボーンが必要です。
 
 表情の4分類はFBXのチャンネル名から判定し、その他の名前は「その他」に表示します。同名の表情が複数メッシュにあれば同時に動かします。FBXの形状キーは1メッシュ512チャンネル、1チャンネル128段階、モデル全体で展開頂点×段階の合計6400万を上限とし、省略があれば読込結果に表示します。
 
@@ -65,21 +87,21 @@ VRMA 1.0 はファイル内の先頭のアニメーションを読み込みま�
 
 - アバターの読込は端末上で行います。パッケージからFBX、prefabの設定、材質、画像を読み取り、シェーダーはビルド済みパックから適用します。Xアクセサリの相対参照画像は、Xファイルのあるフォルダーとその配下から読み込みます。
 - tarは相対パス、ファイル種別、重複、チェックサムを検査します。上限は1エントリー256 MiB、展開合計1 GiB、20,000エントリーです。
-- FBXの解析とシェーダーパックの読込はプレイヤーのプロセス内で行います。入手元を確認したファイルを選んでください。PNGは最大4096四方を受け付け、プレビュー用に長辺1024以下に縮小します。保持するテクスチャは32枚・128 MiBまでです。
+- FBXの解析とシェーダーパックの読込はプレイヤーのプロセス内で行います。PNGは最大4096四方を受け付け、Windows向けのインポート設定に従って解像度を決めます。モデルごとのテクスチャ予算は128枚・512 MiBで、容量を超える場合は縮小します。TextureImporterの情報がないPNGは長辺1024以下で読み込みます。
 - `.avadance` には読み込んだモデルや音声のデータが入ります。プロジェクトファイルを渡す場合は、収録した各素材の再配布条件を確認してください。動画や画像の公開には各素材の利用条件が適用されます。
 
 ## ソースから起動 / ビルド
 
-Windows x64、Unity 2022.3.22f1（Windows Build Support）、Python 3、Git、CMake、MSVCのC++ビルドツールとWindows SDKを使用します。Editorを開く前に、リポジトリのルートで次の2行を実行します。
+Windows x64、Unity 2022.3.22f1（Windows Build Support）、.NET SDK、Python 3、Git、CMake、MSVCのC++ビルドツールとWindows SDKを使用します。Editorを開く前に、リポジトリのルートで次の2行を実行します。
 
 ```powershell
 python Tools/restore_inputs.py
 powershell -File Native/build.ps1
 ```
 
-1行目はufbxとM PLUS 1pの固定リビジョンを取得し、SHA-256を照合します。2行目はBulletの固定リビジョンを取得し、Windows用プラグイン3個をコンパイルします。Unity Package Managerはプロジェクトを開く際にUniVRMなどを取得します。[ネイティブプラグイン](Native/README.md)・[UniVRM v0.131.4](https://github.com/vrm-c/UniVRM/releases/tag/v0.131.4)
+1行目はufbxとM PLUS 1pの固定リビジョンを取得し、SHA-256を照合します。2行目はBulletの固定リビジョンを取得し、Windows用ネイティブプラグインをコンパイルします。Unity Package Managerはプロジェクトを開く際にUniVRMなどを取得します。[ネイティブプラグイン](Native/README.md)・[UniVRM v0.131.4](https://github.com/vrm-c/UniVRM/releases/tag/v0.131.4)
 
-Unity Hubでプロジェクトを開き、**AvaAvaDance > Open UI prototype** を選ぶとEditor内で起動します。スタンドアロン版は同じEditorの `Unity.exe` で次のコマンドを実行します。
+Unity Hubでプロジェクトを開き、**AvaAvaDance > Open UI prototype** を選ぶとEditor内で起動します。スタンドアロン版をビルドする前に、[公式シェーダーパックの準備](Docs/shader-packs.md#アプリ同梱用の公式パックを作成する)を行ってください。その後、同じEditorの `Unity.exe` で次のコマンドを実行します。
 
 ```powershell
 Unity.exe -batchmode -quit -projectPath <repo> -executeMethod AvaAvaDance.Editor.BuildApp.Windows -logFile build.log
@@ -106,11 +128,29 @@ Builds/Windows/AvaAvaDance.exe -avaSmokePackage <repo>/Tests/triangle.unitypacka
 
 ```powershell
 python Tests/make_production_fixture.py
-Builds/Windows/AvaAvaDance.exe -batchmode -avaSmokePackage Builds/ProductionTest/rig.unitypackage -avaSmokeWav Builds/ProductionTest/beat.wav -avaSmokeOutput Builds/ProductionTest -avaPhysBoneSmoke -avaProductionSmoke -avaMovieEdgeSmoke
+Builds/Windows/AvaAvaDance.exe -batchmode -avaSmokePackage Builds/ProductionTest/rig.unitypackage -avaSmokeWav Builds/ProductionTest/beat.wav -avaSmokeOutput Builds/ProductionTest -avaRigShapesSmoke -avaPhysBoneSmoke -avaProductionSmoke -avaMovieEdgeSmoke
 Builds/Windows/AvaAvaDance.exe -batchmode -avaProjectSmoke Builds/ProductionTest/dance.avadance -avaSmokeOutput Builds/ProductionTest/Cold
 ```
 
-メニュー互換テストは、上のWindowsプレイヤーを `-avaMenuSmoke`、`-avaSmokePackage Tests/triangle.unitypackage`、`-avaSmokeWav Builds/ProductionTest/beat.wav`、`-avaSmokeOutput <出力先>` で起動します。アクセスキー、モデル切替、VSQ、VPD、VMD、X、複数モデルのプロジェクト再読込、AVI出力を検査します。
+編集画面の切り替え、拡張の読み込み、数値変換と描画を個別に検査できます。プレイヤー試験の出力先には結果と画像が保存されます。
+
+```powershell
+dotnet run --project Tests/ExtensionHarness
+python Tests/Extensions/make_extension_fixtures.py
+Builds/Windows/AvaAvaDance.exe -batchmode -avaWorkspaceSmoke -avaProfileOutputSmoke -avaScreenHistorySmoke -avaSmokePackage Tests/triangle.unitypackage -avaSmokeOutput Builds/Checks/Workspace
+Builds/Windows/AvaAvaDance.exe -batchmode -avaExtensionSmoke -avaSmokePackage Tests/triangle.unitypackage -avaSmokeOutput Builds/Checks/Host
+Builds/Windows/AvaAvaDance.exe -avaExtensionUiSmoke -avaSmokeOutput Builds/Checks/Windows
+Builds/Windows/AvaAvaDance.exe -batchmode -avaEffectSmoke Builds/ExtensionFixtures/effect.json -avaSmokeOutput Builds/Checks/Effects
+Builds/Windows/AvaAvaDance.exe -batchmode -avaSizingSmoke Builds/ExtensionFixtures/sizing.json -avaSmokeOutput Builds/Checks/Sizing
+```
+
+透明材質の画面参照を検査するには、Unity のバッチ実行で `AvaAvaDance.Editor.ShaderIntegrationBuild.SurfaceFixture` を指定してテスト用パックを書き出し、プレイヤーに次の引数を渡します。
+
+```powershell
+Builds/Windows/AvaAvaDance.exe -batchmode -avaGrabSmoke -avaShaderPack Builds/GrabFixture.avadshader -avaSmokePackage Tests/triangle.unitypackage -avaSmokeOutput Builds/Checks/Grab
+```
+
+メニューの試験は、上のWindowsプレイヤーを `-avaMenuSmoke`、`-avaSmokePackage Tests/triangle.unitypackage`、`-avaSmokeWav Builds/ProductionTest/beat.wav`、`-avaSmokeOutput <出力先>` で起動します。アクセスキー、モデル切替、VSQ、VPD、VMD、X、複数モデルのプロジェクト再読込、AVI出力を検査します。
 
 VRMとVRMAのテストには、頭・腰・足IK・まばたき・視線を持つVRM 0.xと1.0を各1体使います。次のテストはボーンの基準回転、腰移動の体格補正、補間、表情・視線、Undo/Redo、プロジェクト復元と、編集済みVRMAを別の開始フレームに再読込した結果を検査します。
 
@@ -137,4 +177,6 @@ Windows版のビルドは実行ファイルと同じフォルダーに `LICENSE`
 
 ## lilToon・追加シェーダー
 
-lilToonを使う場合は、公式VPM配布物から別のUnityプロジェクトでパックを作成します。出力フォルダーには `.avadshader` と、lilToon、VRC Light Volumesなどの権利表示が入ります。[外部パックの作成手順](Docs/shader-packs.md)
+lilToon 2.4.1 は公式VPM、VRM (MToon / MToon10) 0.131.4 は UniVRM の GitHub リリースから導入します。ライセンス画面を閉じるだけではダウンロードしません。同意後に配布物のSHA-256を照合し、同じ版の描画用パックを有効化します。導入状態は次回起動時にも復元されます。アプリを移動する際は `ShaderPackages` フォルダーも一緒にコピーしてください。
+
+その他の `.unitypackage` は、端末にある Unity 2022.3.22f1 を使い、シェーダーと依存画像を別の作業用プロジェクトで変換します。パッケージ内のC#やDLLは読み込みません。Unityを導入していない端末では、作成済みの `.avadshader` を選べます。lilToon・VRMのメニュー導入にはUnity Editorは不要です。[パックの作成手順](Docs/shader-packs.md)

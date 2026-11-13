@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UIElements;
@@ -47,20 +48,27 @@ namespace AvaAvaDance
         float groundBrightness = 1;
         Toggle modelSelfToggle;
 
-        VisualElement ShowDialog(string title, out VisualElement body)
+        readonly List<VisualElement> dialogDisabled=new List<VisualElement>();
+        VisualElement ShowDialog(string title, out VisualElement body,bool allowProfileSwitch=false)
         {
             CloseDialog();
             StopPlayback();
             var root = GetComponent<UIDocument>().rootVisualElement;
             modal = Box(root, "modal", "modal");
-            root.Q("workspace")?.SetEnabled(false);
+            var workspace=root.Q("workspace");
+            void Disable(VisualElement element){if(element.enabledSelf){dialogDisabled.Add(element);element.SetEnabled(false);}}
+            if(allowProfileSwitch){
+                var bar=workspace.Q("profile-bar");modal.style.top=bar.worldBound.yMax;
+                foreach(var child in workspace.Children())if(child!=bar)Disable(child);
+                foreach(var child in bar.Children())if(child!=classicTab && child!=movingTab)Disable(child);
+            }else Disable(workspace);
             var scroll = new ScrollView(ScrollViewMode.Vertical); scroll.AddToClassList("dialog-body"); modal.Add(scroll);
             body = scroll.contentContainer; body.name = "dialog-body";
             body.Add(new Label(title) { name = "dialog-title" });
             modal.focusable = true; modal.Focus();
             return modal;
         }
-        void CloseDialog() { if(modal==null)return; modal.RemoveFromHierarchy(); modal=null; var workspace=GetComponent<UIDocument>().rootVisualElement.Q("workspace"); workspace?.SetEnabled(true); workspace?.Focus(); }
+        void CloseDialog() { if(modal==null)return; modal.RemoveFromHierarchy(); modal=null; var workspace=GetComponent<UIDocument>().rootVisualElement.Q("workspace"); foreach(var child in dialogDisabled)child.SetEnabled(true);dialogDisabled.Clear();workspace?.Focus(); }
 
         void BuildShadowPanel(VisualElement parent)
         {
@@ -103,7 +111,16 @@ namespace AvaAvaDance
 
         void ApplyShadow(ShadowPose pose)
         {
-            previewLamp.shadows = LightShadows.None;
+            bool self=pose.Mode!=0 && showSelfShadow;
+            bool native=false;
+            foreach(var model in drawOrder)
+                foreach(var renderer in model.shadowCasters) {
+                    bool receive=self && model.modelSelfShadow && model.sourceShadowReceivers.Contains(renderer) && nativeShadowReceivers.Contains(renderer);
+                    renderer.receiveShadows=receive;
+                    native |= receive;
+                }
+            previewLamp.shadows = native ? LightShadows.Soft : LightShadows.None;
+            previewLamp.shadowCustomResolution = pose.Mode==2 ? 2048 : 1024;
             shadowFloor.SetActive(groundShadow);
             groundMaterial.SetColor("_GroundTint",viewOptions.shadowTint);
             groundMaterial.SetFloat("_GroundBrightness", Mathf.Clamp01(groundBrightness*.56f));

@@ -1,3 +1,4 @@
+using MmdText = Ava.Extensions.MmdText;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,18 +16,22 @@ namespace AvaAvaDance
         public Vector3 Position,Rotation;
         public float Scale,Opacity;
         public bool Hidden;
-        public string Parent, Model;
+        public string Parent, Model, ParentId;
         public static AccessoryPose Initial => new AccessoryPose {Scale=1,Opacity=1};
         public static AccessoryPose Blend(AccessoryPose a,AccessoryPose b,float t) => new AccessoryPose {
             Position=Vector3.Lerp(a.Position,b.Position,t),Rotation=Vector3.Lerp(a.Rotation,b.Rotation,t),
-            Scale=Mathf.Lerp(a.Scale,b.Scale,t),Opacity=Mathf.Lerp(a.Opacity,b.Opacity,t),Hidden=a.Hidden,Parent=a.Parent,Model=a.Model
+            Scale=Mathf.Lerp(a.Scale,b.Scale,t),Opacity=Mathf.Lerp(a.Opacity,b.Opacity,t),Hidden=a.Hidden,Parent=a.Parent,Model=a.Model,ParentId=a.ParentId
         };
     }
 
     public sealed partial class DanceApp
     {
         [Serializable] sealed class AccessoryData {
-            public string name;
+            public string name,id,sourceName;
+            public float meshUnit;
+            internal Quaternion MeshBasis=>meshUnit>0?Quaternion.Euler(0,180,0):Quaternion.identity;
+            internal string EffectFile=>sourceName??(sourcePath==null?name+".x":Path.GetFileName(sourcePath));
+            [NonSerialized] public string sourcePath;
             public string[] textures;
             [NonSerialized] public byte[] mesh;
             [NonSerialized] public Dictionary<string,byte[]> images;
@@ -40,6 +45,7 @@ namespace AvaAvaDance
             public string[] Maps;
         }
         readonly List<Prop> props=new List<Prop>();
+        readonly Dictionary<Material,DirectXMesh.MaterialSurface> accessoryMaterials=new Dictionary<Material,DirectXMesh.MaterialSurface>();
         DropdownField propList, propParent;
         Toggle propVisible;
         Button propRemove,propRegister;
@@ -49,13 +55,41 @@ namespace AvaAvaDance
         void RefreshPropParents()
         {
             propParents.Clear();
-            foreach(var a in drawOrder)foreach(var b in a.bones)
-                propParents.Add((a,b,drawOrder.Count>1?a.label+"："+b.Track.Name:b.Track.Name));
+            foreach(var a in drawOrder){
+                var names=new HashSet<string>(a.bones.GroupBy(b=>b.Track.Name).Where(g=>g.Count()>1).Select(g=>g.Key));
+                foreach(var b in a.bones){
+                    var label=b.Track.Name+(names.Contains(b.Track.Name)?" ("+b.Track.Id+")":"");
+                    propParents.Add((a,b,drawOrder.Count>1?a.label+"："+label:label));
+                }
+            }
             if(propParent!=null)propParent.choices=new[]{"地面"}.Concat(propParents.Select(b=>b.label)).ToList();
         }
         int screenMode;
-        RenderTexture screenImage;
+        readonly ScreenHistory previewHistory=new ScreenHistory(), movieHistory=new ScreenHistory();
+        UnityEngine.Rendering.CommandBuffer screenCopy;
+        sealed class ScreenHistory : IDisposable
+        {
+            public RenderTexture Input,Output;
+            public float Sample=float.NaN;
+            public long Document;
+            public void Dispose(){
+                foreach(var texture in new[]{Input,Output})if(texture!=null){texture.Release();UnityEngine.Object.Destroy(texture);}
+                Input=Output=null;Sample=float.NaN;
+            }
+            public void Begin(int width,int height,Color background,float time,long document)
+            {
+                if(Input==null || Input.width!=width || Input.height!=height || Document!=document){
+                    Dispose();Document=document;
+                    Input=new RenderTexture(width,height,0){name="スクリーン入力"};Output=new RenderTexture(width,height,0){name="スクリーン出力"};
+                    var previous=RenderTexture.active;
+                    try{foreach(var texture in new[]{Input,Output}){texture.Create();RenderTexture.active=texture;GL.Clear(false,true,background);}}
+                    finally{RenderTexture.active=previous;}
+                }else if(!float.IsNaN(Sample) && Sample!=time){var prior=Input;Input=Output;Output=prior;}
+                Sample=time;
+            }
+        }
         Vector3 propFloor => new Vector3(0,-1,0);
+        Matrix4x4 EffectWorld=>Matrix4x4.TRS(propFloor,Quaternion.Euler(0,180,0),Vector3.one*SceneUnit).inverse;
 
         void BuildAccessories(VisualElement bottom)
         {
@@ -70,7 +104,13 @@ namespace AvaAvaDance
             propVisible=new Toggle("表示");accessory.Add(propVisible);
             propVisible.RegisterValueChangedCallback(e=>EditProp(p=>{p.Hidden=!e.newValue;return p;}));
             propParent=Choice(accessory,new[]{"地面"});
-            propParent.RegisterValueChangedCallback(e=>EditProp(p=>{var choice=propParent.index<=0?default:propParents[propParent.index-1];p.Parent=choice.bone?.Track.Name;p.Model=choice.owner?.id;return p;}));
+            propParent.RegisterValueChangedCallback(e=>EditProp(p=>{
+                var choice=propParent.index<=0?default:propParents[propParent.index-1];
+                var t=activeProp.Object.transform;var parent=choice.bone?.Joint;
+                p.Position=(parent!=null?Quaternion.Inverse(parent.rotation)*(t.position-parent.position):t.position-propFloor)/SceneUnit;
+                p.Rotation=SignedAngles((parent==null?t.rotation:Quaternion.Inverse(parent.rotation)*t.rotation)*Quaternion.Inverse(activeProp.Data.MeshBasis));
+                p.Parent=choice.bone?.Track.Name;p.ParentId=choice.bone?.Track.Id;p.Model=choice.owner?.id;return p;
+            }));
             for(int i=0;i<8;i++) {
                 if(i==0 || i==3 || i==6)row=Box(accessory,"prop-values-"+i,"row");
                 int axis=i;
@@ -99,7 +139,8 @@ namespace AvaAvaDance
             propRemove.SetEnabled(ready);propRegister.SetEnabled(ready);propVisible.SetEnabled(ready);
             var value=ready?activeProp.Track.Current:AccessoryPose.Initial;
             propVisible.SetValueWithoutNotify(!value.Hidden);
-            propParent.SetValueWithoutNotify(propParents.Find(b=>b.bone.Track.Name==value.Parent && (string.IsNullOrEmpty(value.Model) || b.owner.id==value.Model)).label??"地面");
+            var parent=ResolvePropParent(value);
+            propParent.SetValueWithoutNotify(propParents.Find(b=>b.bone==parent).label??"地面");
             propParent.SetEnabled(ready && propParents.Count>0);
             for(int i=0;i<8;i++) {
                 propFields[i].SetEnabled(ready);
@@ -120,16 +161,28 @@ namespace AvaAvaDance
             }
         }
 
-        void PositionProp(Prop prop,AccessoryPose pose)
+        BoneBinding ResolvePropParent(AccessoryPose pose)
         {
             var owner=string.IsNullOrEmpty(pose.Model)?drawOrder.FirstOrDefault():drawOrder.Find(a=>a.id==pose.Model);
-            var parent=pose.Parent==null?null:owner?.bones.Find(b=>b.Track.Name==pose.Parent)?.Joint;
+            return string.IsNullOrEmpty(pose.ParentId)?owner?.bones.Find(b=>b.Track.Name==pose.Parent):owner?.bones.Find(b=>b.Track.Id==pose.ParentId);
+        }
+        AccessoryPose SavePropParent(AccessoryPose pose)
+        {
+            if(string.IsNullOrEmpty(pose.ParentId) && !string.IsNullOrEmpty(pose.Parent)){
+                var bone=ResolvePropParent(pose);
+                if(bone!=null){pose.ParentId=bone.Track.Id;if(string.IsNullOrEmpty(pose.Model))pose.Model=drawOrder[0].id;}
+            }
+            return pose;
+        }
+        void PositionProp(Prop prop,AccessoryPose pose)
+        {
+            var parent=ResolvePropParent(pose)?.Joint;
             var offset=pose.Position*SceneUnit;var t=prop.Object.transform;
             t.SetPositionAndRotation(parent==null?propFloor+offset:parent.position+parent.rotation*offset,
-                (parent!=null?parent.rotation:Quaternion.identity)*Quaternion.Euler(pose.Rotation));
-            t.localScale=Vector3.one*(SceneUnit*pose.Scale);
+                (parent!=null?parent.rotation:Quaternion.identity)*Quaternion.Euler(pose.Rotation)*prop.Data.MeshBasis);
+            t.localScale=Vector3.one*((prop.Data.meshUnit>0?prop.Data.meshUnit:SceneUnit)*pose.Scale);
         }
-        void LateUpdate() {foreach(var prop in props)if(prop.Track.Current.Parent!=null)PositionProp(prop,prop.Track.Current);}
+        void LateUpdate() {foreach(var prop in props)if(prop.Track.Current.Parent!=null || prop.Track.Current.ParentId!=null)PositionProp(prop,prop.Track.Current);}
         void LoadAccessory(string path)
         {
             if(props.Count>=255)throw new IOException("アクセサリ上限です。");
@@ -149,17 +202,21 @@ namespace AvaAvaDance
                 }
                 basis=lines[0].Trim();path=target;pose.Scale=Scalar(lines[2]);pose.Position=Triplet(lines[3]);pose.Rotation=Triplet(lines[4]);
                 pose.Model=actor.id;pose.Parent=lines.Length>5 && !lines[5].StartsWith("//")?lines[5].Trim():null;
+                pose=SavePropParent(pose);
                 if(!ValidPose(pose))throw new InvalidDataException("VACの姿勢が不正です。");
             }
             string name=basis;
             for(int n=2;sceneTracks.Any(t=>t.Name==name);n++)name=basis+" ("+n+")";
-            var data=new AccessoryData {name=name,mesh=ReadMmdFile(path),images=new Dictionary<string,byte[]>(StringComparer.OrdinalIgnoreCase)};
+            var data=new AccessoryData {name=name,sourceName=Path.GetFileName(path),sourcePath=Path.GetFullPath(path),meshUnit=10*SceneUnit,mesh=ReadMmdFile(path),images=new Dictionary<string,byte[]>(StringComparer.OrdinalIgnoreCase)};
             AddProp(data,Path.GetDirectoryName(Path.GetFullPath(path)));activeProp.Track.Write(0,pose);activeProp.Track.Seek(frame);
             ChangeMode(false);SelectTrack(activeProp.Track);
         }
         void AddProp(AccessoryData data,string sourceDir=null)
         {
-            var mesh=DirectXMesh.Load(data.mesh,out var colors,out var maps);
+            sourceRevision++;
+            if(string.IsNullOrEmpty(data.id))data.id=Guid.NewGuid().ToString("N");
+            var mesh=DirectXMesh.Load(data.mesh,out var surfaces,out var maps);
+            var colors=surfaces.Select(s=>s.diffuse).ToArray();
             var obj=new GameObject(data.name);obj.layer=30;obj.transform.SetParent(previewRig.transform,false);
             var owned=obj.AddComponent<FbxOwnedResources>();owned.Own(mesh);
             try {
@@ -188,6 +245,7 @@ namespace AvaAvaDance
                 obj.AddComponent<MeshRenderer>().sharedMaterials=mats;
                 var prop=new Prop {Data=data,Object=obj,Materials=mats,Colors=colors,Maps=maps};
                 prop.Track=new MotionTrack<AccessoryPose>(data.name,AccessoryPose.Initial,AccessoryPose.Blend,p=>ApplyProp(prop,p));
+                for(int i=0;i<mats.Length;i++)accessoryMaterials[mats[i]]=surfaces[i];
                 props.Add(prop);sceneTracks.Add(prop.Track);activeProp=prop;prop.Track.Seek(frame);
                 UpdateScreenMaterials();SyncProp(); RefreshTimelineLabels();
             } catch {Destroy(obj);throw;}
@@ -206,7 +264,8 @@ namespace AvaAvaDance
             if(prop==null)return;
             DiscardHistory(undo,t=>t==prop.Track);DiscardHistory(redo,t=>t==prop.Track);
             keyClipboard.RemoveAll(k=>k.Track==prop.Track);selectedKeys.RemoveWhere(k=>k.track==prop.Track);
-            props.Remove(prop);sceneTracks.Remove(prop.Track);prop.Object.SetActive(false);Destroy(prop.Object);
+            foreach(var m in prop.Materials)accessoryMaterials.Remove(m);
+            sourceRevision++;props.Remove(prop);sceneTracks.Remove(prop.Track);prop.Object.SetActive(false);Destroy(prop.Object);
             activeProp=props.FirstOrDefault();if(sceneSelection==prop.Track)sceneSelection=cameraTrack;
             if(selectedTrack==prop.Track)SelectTrack(sceneSelection);
             SyncProp();RefreshKeyButtons();RefreshTimelineLabels();
@@ -227,20 +286,20 @@ namespace AvaAvaDance
         static bool IsScreen(string map)=>string.Equals(Path.GetFileName(map),"screen.bmp",StringComparison.OrdinalIgnoreCase);
         void UpdateScreenMaterials()
         {
-            Texture image=screenMode==3?videoPlayer?.texture:screenMode!=0?screenImage:null;
+            Texture image=screenMode==3?videoPlayer?.texture:screenMode!=0?(exporting?movieHistory:previewHistory).Input:null;
             foreach(var prop in props)for(int i=0;i<prop.Materials.Length;i++)
                 if(IsScreen(prop.Maps[i]))prop.Materials[i].mainTexture=image;
         }
-        void UpdatePropScreen()
+        void PrepareScreenHistory(Camera camera)
         {
-            if(screenMode==0 || !props.Any(p=>p.Maps.Any(IsScreen)))return;
-            if(screenMode!=3 && previewTexture!=null) {
-                int h=previewTexture.height,w=screenMode==2?h*4/3:previewTexture.width;
-                if(screenImage==null || screenImage.width!=w || screenImage.height!=h) {
-                    if(screenImage!=null){screenImage.Release();Destroy(screenImage);}
-                    screenImage=new RenderTexture(w,h,0);
-                }
-                Graphics.Blit(previewTexture,screenImage);
+            screenCopy.Clear();
+            if(!props.Any(p=>p.Maps.Any(IsScreen)))return;
+            var target=camera.targetTexture;
+            if(screenMode==1 || screenMode==2){
+                int width=screenMode==2?target.height*4/3:target.width;
+                var history=exporting?movieHistory:previewHistory;
+                history.Begin(width,target.height,camera.backgroundColor,evaluationTime,documentGeneration);
+                screenCopy.Blit(UnityEngine.Rendering.BuiltinRenderTextureType.CameraTarget,history.Output);
             }
             UpdateScreenMaterials();
         }

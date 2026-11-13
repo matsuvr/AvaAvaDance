@@ -1,0 +1,21 @@
+{
+  "manifestVersion": 1,
+  "displayName": "VMDサイジング",
+  "id": "ava.vmd-sizing",
+  "version": "1.0.0",
+  "sdk": {
+    "major": 1,
+    "minMinor": 0
+  },
+  "entry": {
+    "assembly": "managed/Ava.MotionTools.dll",
+    "type": "Ava.MotionTools.MotionPlugin"
+  },
+  "dependencies": [],
+  "services": [
+    "classic-ui",
+    "rig",
+    "motion"
+  ],
+  "stateSchema": 1
+}

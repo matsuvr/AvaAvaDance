@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using UnityEngine;
+using Ava.Extensions;
 using Asset = AvaAvaDance.Import.UnityPackageReader.PackageAsset;
 
 namespace AvaAvaDance.Import
@@ -14,11 +15,21 @@ namespace AvaAvaDance.Import
     {
         internal sealed class Node
         {
-            internal Transform Joint;
+            internal Binding Model;
+            internal Transform Joint=>Model?.Transform;
             internal Node Parent;
             internal readonly List<Node> Children = new List<Node>();
             internal Matrix4x4 PrefabWorld, ToJoint;
             internal bool Active;
+        }
+
+        internal sealed class Binding
+        {
+            internal string Name;
+            internal int Index;
+            internal Transform Transform;
+            internal Matrix4x4 World;
+            internal readonly List<Binding> Children=new List<Binding>();
         }
 
         internal sealed class Collider
@@ -41,6 +52,7 @@ namespace AvaAvaDance.Import
             internal Fields Parameters;
         }
 
+        internal readonly List<RigShape> Shapes=new List<RigShape>();
         internal int Components;
         internal readonly List<Chain> Chains = new List<Chain>();
         const string SdkGuid = "2a2c05204084d904aa4945ccff20d8e5";
@@ -115,11 +127,30 @@ namespace AvaAvaDance.Import
         internal static PrefabPhysBones Read(Asset prefab,GameObject avatar)
         {
             var result = new PrefabPhysBones();
-            if(prefab!=null)result.Bind(Encoding.UTF8.GetString(prefab.Data),avatar);
+            if(prefab==null)return result;
+            var transforms=avatar.GetComponentsInChildren<Transform>(true);
+            var entries=transforms.Select((t,i)=>new Binding{Name=t.name,Index=i,Transform=t,World=t.localToWorldMatrix}).ToArray();
+            var bindings=entries.ToDictionary(b=>b.Transform);
+            foreach(var entry in entries)if(entry.Transform.parent!=null && bindings.TryGetValue(entry.Transform.parent,out var parent))parent.Children.Add(entry);
+            var root=bindings[avatar.transform];
+            if(root.Children.Count==1 && root.Children[0].Name=="")root=root.Children[0];
+            result.Bind(Encoding.UTF8.GetString(prefab.Data),root);
             return result;
         }
 
-        void Bind(string yaml,GameObject avatar)
+        internal static RigShape[] ReadShapes(Asset prefab,RigProfile rig,Matrix4x4[] world)
+        {
+            if(prefab==null || rig.joints.Length==0)return Array.Empty<RigShape>();
+            var entries=rig.joints.Select((j,i)=>new Binding{Name=j.name,Index=i,
+                World=world[i]}).ToArray();
+            for(int i=0;i<entries.Length;i++)if(rig.joints[i].parent>=0)entries[rig.joints[i].parent].Children.Add(entries[i]);
+            var root=Array.FindIndex(rig.joints,j=>j.parent<0);
+            if(root<0)return Array.Empty<RigShape>();
+            var result=new PrefabPhysBones();result.Bind(Encoding.UTF8.GetString(prefab.Data),entries[root]);
+            return result.Shapes.ToArray();
+        }
+
+        void Bind(string yaml,Binding fbxRoot)
         {
             var objects=new Dictionary<long,(string name,bool active)>();
             var nodes=new Dictionary<long,Node>();
@@ -130,7 +161,7 @@ namespace AvaAvaDance.Import
             if(headers.Count>50000)return;
             for(int i=0;i<headers.Count;i++) {
                 var h=headers[i]; string type=h.Groups[1].Value;
-                if(type!="1" && type!="4" && type!="114")continue;
+                if(type!="1" && type!="4" && type!="114" && type!="65" && type!="135" && type!="136")continue;
                 int start=h.Index+h.Length, end=i+1<headers.Count ? headers[i+1].Index : yaml.Length;
                 var f=new Fields(yaml.Substring(start,end-start));
                 long id=Id(h.Groups[2].Value);
@@ -145,6 +176,7 @@ namespace AvaAvaDance.Import
                     var node=new Node(); nodes[id]=node; owners[f.Ref("m_GameObject")]=node;
                     transforms[id]=(f.Ref("m_GameObject"),f.Ref("m_Father"),f);
                 }
+                if(type=="65" || type=="135" || type=="136")components.Add((id,Id(type),f));
                 if(type=="114") {
                     string script=f.Get("m_Script");
                     if(script.IndexOf(SdkGuid,StringComparison.OrdinalIgnoreCase)<0)continue;
@@ -153,9 +185,7 @@ namespace AvaAvaDance.Import
                     if(fileId==PhysBoneId)Components++;
                 }
             }
-            if(Components==0)return;
-            var fbxRoot=avatar.transform;
-            if(fbxRoot.childCount==1 && fbxRoot.GetChild(0).name=="")fbxRoot=fbxRoot.GetChild(0);
+            if(components.Count==0)return;
             var visited=new HashSet<long>();
             void Map(long id,Node parent,int depth) {
                 if(depth>256 || !visited.Add(id) || !transforms.TryGetValue(id,out var info) || !objects.TryGetValue(info.owner,out var obj))return;
@@ -164,14 +194,11 @@ namespace AvaAvaDance.Import
                 n.Parent=parent; n.Active=obj.active && (parent?.Active ?? true);
                 n.PrefabWorld=parent==null ? Matrix4x4.identity : parent.PrefabWorld *
                     Matrix4x4.TRS(f.Vector("m_LocalPosition"),f.Rotation("m_LocalRotation"),f.Vector("m_LocalScale",Vector3.one));
-                if(parent==null)n.Joint=fbxRoot;
-                else if(parent.Joint!=null) {
-                    for(int j=0;j<parent.Joint.childCount;j++) {
-                        var t=parent.Joint.GetChild(j);
-                        if(t.name!=obj.name)continue;
-                        if(n.Joint!=null) {n.Joint=null; break;}
-                        n.Joint=t;
-                    }
+                if(parent==null)n.Model=fbxRoot;
+                else if(parent.Model!=null)foreach(var child in parent.Model.Children){
+                    if(child.Name!=obj.name)continue;
+                    if(n.Model!=null){n.Model=null;break;}
+                    n.Model=child;
                 }
                 foreach(var child in f.Refs("m_Children")) {
                     if(!transforms.TryGetValue(child,out var ci) || ci.parent!=id)continue;
@@ -182,9 +209,9 @@ namespace AvaAvaDance.Import
 
             // Unity's ModelImporter can bake handedness/units into each joint while ufbx
             // keeps them on its scene root. Register the two bind spaces before posing the arms.
-            var segments=nodes.Values.Where(n=>n.Joint!=null && n.Parent?.Joint!=null)
+            var segments=nodes.Values.Where(n=>n.Model!=null && n.Parent?.Model!=null)
                 .Select(n=>(source:(Vector3)(n.PrefabWorld.GetColumn(3)-n.Parent.PrefabWorld.GetColumn(3)),
-                            target:n.Joint.position-n.Parent.Joint.position))
+                            target:(Vector3)(n.Model.World.GetColumn(3)-n.Parent.Model.World.GetColumn(3))))
                 .Where(s=>s.source.sqrMagnitude>1e-10f && s.target.sqrMagnitude>1e-10f).ToList();
             var first=segments.OrderByDescending(s=>s.source.sqrMagnitude).FirstOrDefault();
             var second=segments.OrderByDescending(s=>Vector3.Cross(first.source,s.source).sqrMagnitude).FirstOrDefault();
@@ -199,10 +226,11 @@ namespace AvaAvaDance.Import
             var basis=Matrix4x4.TRS(Vector3.zero,align,Vector3.one*scale);
             foreach(var n in nodes.Values) {
                 var anchor=n;
-                while(anchor!=null && !anchor.Joint)anchor=anchor.Parent;
+                while(anchor!=null && anchor.Model==null)anchor=anchor.Parent;
                 if(anchor==null)continue;
-                var local=anchor.Joint.worldToLocalMatrix*basis*n.PrefabWorld;
-                Vector3 offset=anchor.Joint.InverseTransformVector(basis.MultiplyVector(n.PrefabWorld.GetColumn(3)-anchor.PrefabWorld.GetColumn(3)));
+                var inverse=anchor.Model.World.inverse;
+                var local=inverse*basis*n.PrefabWorld;
+                Vector3 offset=inverse.MultiplyVector(basis.MultiplyVector(n.PrefabWorld.GetColumn(3)-anchor.PrefabWorld.GetColumn(3)));
                 local.SetColumn(3,new Vector4(offset.x,offset.y,offset.z,1)); n.ToJoint=local;
             }
             Node Root(Fields f) {
@@ -214,9 +242,37 @@ namespace AvaAvaDance.Import
                 return root==0 ? owner : nodes.TryGetValue(root,out var n) && n.Active ? n : null;
             }
             var colliders=new Dictionary<long,Collider>();
+            double[] Values(Vector3 v)=>new double[]{v.x,v.y,v.z};
+            foreach(var c in components.Where(c=>c.script!=PhysBoneId)) {
+                var f=c.data;var n=Root(f);var anchor=n;
+                while(anchor!=null && anchor.Model==null)anchor=anchor.Parent;
+                if(anchor==null)continue;
+                bool phys=c.script==ColliderId;
+                if(phys && (f.Int("insideBounds")!=0 || f.Int("shapeType")>1))continue;
+                var basisLocal=n.ToJoint;
+                var center=basisLocal.MultiplyPoint3x4(f.Vector(phys?"position":"m_Center"));
+                var bound=new RigShape{name=anchor.Model.Name+" "+(Shapes.Count+1),role=anchor.Model.Name,jointIndex=anchor.Model.Index,center=Values(center)};
+                if(c.script==65){
+                    var half=f.Vector("m_Size",Vector3.one)*.5f;
+                    bound.shape="box";
+                    bound.boxAxes=new[]{Vector3.right*half.x,Vector3.up*half.y,Vector3.forward*half.z}
+                        .SelectMany(v=>Values(basisLocal.MultiplyVector(v))).ToArray();
+                }else{
+                    bool capsule=phys?f.Int("shapeType")==1:c.script==136;
+                    var direction=f.Int("m_Direction",1);
+                    var axis=phys?f.Rotation("rotation")*Vector3.up:direction==0?Vector3.right:direction==2?Vector3.forward:Vector3.up;
+                    var up=basisLocal.MultiplyVector(axis);
+                    float radius=Math.Max(0,f.Number(phys?"radius":"m_Radius"));
+                    var scales=basisLocal.lossyScale;
+                    float radiusScale=Mathf.Max(Mathf.Abs(scales.x),Mathf.Abs(scales.y),Mathf.Abs(scales.z));
+                    bound.shape=capsule?"capsule":"sphere";bound.radius=radius*radiusScale;
+                    bound.height=Math.Max(0,f.Number(phys?"height":"m_Height"))*up.magnitude;bound.axis=Values(up.normalized);
+                }
+                Shapes.Add(bound);
+            }
             foreach(var c in components.Where(c=>c.script==ColliderId)) {
                 var f=c.data; var n=Root(f); var anchor=n;
-                while(anchor!=null && !anchor.Joint)anchor=anchor.Parent;
+                while(anchor!=null && anchor.Model==null)anchor=anchor.Parent;
                 if(anchor==null)continue;
                 var up=n.ToJoint.MultiplyVector(f.Rotation("rotation")*Vector3.up);
                 colliders[c.id]=new Collider {Anchor=anchor.Joint,Center=n.ToJoint.MultiplyPoint3x4(f.Vector("position")),

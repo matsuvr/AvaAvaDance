@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>netstandard2.1</TargetFramework></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Extensions/Sdk/Ava.ExtensionSdk.csproj"/>
+    <ProjectReference Include="Text/MaterialLabels.csproj"/>
+    <Compile Remove="Text/**/*.cs"/>
+  </ItemGroup>
+</Project>

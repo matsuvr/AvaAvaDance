@@ -32,16 +32,24 @@ namespace AvaAvaDance
         {
             if (!Available(id) || modal != null || importDialog != null || exporting || importing) return false;
             try { commands[id].Run(); }
-            catch (Exception ex) { status.text = "操作を完了できませんでした　" + ex.Message; Debug.LogWarning(ex.Message); }
+            catch (Exception ex) { ReportActionError("操作を完了できませんでした　", ex); Debug.LogWarning(ex.Message); }
             return true;
         }
 
         void BuildMmdMenus(VisualElement bar)
         {
             BindFileCommands(); BindEditCommands(); BindViewCommands(); BindOtherCommands(); BindPropCommands(); BindModelCommands();
-            englishMenus = PlayerPrefs.GetInt("EnglishMenus") == 1;
-            foreach (var group in MmdMenu.Bar)
+            englishMenus = WorkspacePreferences.GetInt("EnglishMenus") == 1;
+            PresentMenus(bar);
+        }
+
+        void PresentMenus(VisualElement bar)
+        {
+            CloseMenu();FocusHeading(null);bar.Clear();menuButtons.Clear();
+            ComposeExtensionMenus();
+            foreach (var group in combinedMenus)
             {
+                if(group==combinedMenus.Last() && combinedMenus.Length>MmdMenu.Bar.Length && group.Japanese!="プラグイン(&E)")Box(bar,"menu-space","menu-space");
                 var button=Action(bar,group.Label(englishMenus),true,()=>OpenGroup(group));menuButtons.Add(group.Id,button);
                 button.RegisterCallback<BlurEvent>(_=>{if(focusedHeading==group)FocusHeading(null);});
             }
@@ -57,8 +65,8 @@ namespace AvaAvaDance
         void SwitchLanguage()
         {
             englishMenus = !englishMenus;
-            foreach (var group in MmdMenu.Bar) menuButtons[group.Id].text = group.Label(englishMenus);
-            PlayerPrefs.SetInt("EnglishMenus", englishMenus ? 1 : 0); RefreshTimelineLabels();
+            foreach (var group in combinedMenus) menuButtons[group.Id].text = group.Label(englishMenus);
+            WorkspacePreferences.SetInt("EnglishMenus", englishMenus ? 1 : 0); RefreshTimelineLabels();
         }
 
         VisualElement MenuRoot => GetComponent<UIDocument>().rootVisualElement;
@@ -71,7 +79,7 @@ namespace AvaAvaDance
             MenuRoot.Q("workspace").Focus();
         }
 
-        MmdMenu.Entry HeadingAt(Vector2 position) => MmdMenu.Bar.FirstOrDefault(g => menuButtons[g.Id].worldBound.Contains(position));
+        MmdMenu.Entry HeadingAt(Vector2 position) => combinedMenus.FirstOrDefault(g => menuButtons[g.Id].worldBound.Contains(position));
 
         void OpenGroup(MmdMenu.Entry group)
         {
@@ -181,8 +189,8 @@ namespace AvaAvaDance
                 OpenSubmenu(highlight, menuLayer.Q<Button>(highlight.Id.ToString()));
             else if (key == KeyCode.RightArrow || key == KeyCode.LeftArrow)
             {
-                int n = MmdMenu.Bar.Length;
-                OpenGroup(MmdMenu.Bar[(Array.IndexOf(MmdMenu.Bar, menuGroup) + n + (key == KeyCode.RightArrow ? 1 : -1)) % n]);
+                int n = combinedMenus.Length;
+                OpenGroup(combinedMenus[(Array.IndexOf(combinedMenus, menuGroup) + n + (key == KeyCode.RightArrow ? 1 : -1)) % n]);
             }
             else
             {
@@ -192,25 +200,71 @@ namespace AvaAvaDance
             }
         }
 
+        static bool EditingField(VisualElement target, KeyCode key)
+        {
+            bool IsInput(VisualElement element)
+            {
+            for (var v = element; v != null; v = v.parent)
+            {
+                if (v is TextField || v is FloatField || v is IntegerField || v is DropdownField || v is Slider || v is SliderInt) return true;
+                if ((v is Button || v is Toggle) && (key == KeyCode.Return || key == KeyCode.KeypadEnter || key == KeyCode.Space)) return true;
+            }
+            return false;
+            }
+            return IsInput(target) || IsInput(target?.focusController?.focusedElement as VisualElement);
+        }
+
+        bool DeletePanelSelection(VisualElement element)
+        {
+            for(var v=element;v!=null;v=v.parent){
+                if(v is TextField || v is IntegerField || v is FloatField)return false;
+                if(v==waveform || v.name=="floating-wave"){DeleteAudio();return true;}
+                if(v==modeField){if(modelMode)RemoveCurrentAvatar();return true;}
+                if(v==propList){if(activeProp!=null)RemoveProp(activeProp);return true;}
+            }
+            return false;
+        }
+
         void MainMenuKey(KeyDownEvent e)
         {
             if (importDialog != null) return;
+            if(e.target is VisualElement view && view.panel==MenuRoot.panel && !Application.isFocused && ToolFocused()){e.StopImmediatePropagation();return;}
             var key = e.keyCode;
+            if(DuplicateMainSymbol(e.target as VisualElement,key))return;
+            bool repeatKey=symbol.Present?!pressedSymbols.Add(symbol.vk):key!=KeyCode.None && !pressedKeys.Add(key);
+            if (suppressedKeys.Contains(key)) { e.StopImmediatePropagation(); e.PreventDefault(); return; }
             if (key == KeyCode.None && menuLayer != null && char.IsLetter(e.character)) key = (KeyCode)char.ToLowerInvariant(e.character);
-            if (modal != null)
+            if(contextLayer!=null) { if(key==KeyCode.Escape)CloseTimelineMenu(); else return; }
+            else if (modal != null)
             {
                 if (key != KeyCode.Escape) return;
-                if (exporting) cancelExport = true; else CloseDialog();
+                if (exporting) cancelExport = true;
+                else if (shaderDownloadCancellation != null) shaderDownloadCancellation.Cancel();
+                else CloseDialog();
+            }
+            else if(ribbonProfile && key==KeyCode.Delete && !repeatKey && !e.ctrlKey && !e.shiftKey && !e.altKey &&
+                menuLayer==null && !importing && !exporting && DeletePanelSelection(e.target as VisualElement)) { }
+            else if(menuLayer==null && focusedHeading==null && RouteNamedKey(e,repeated:repeatKey)) { }
+            else if (ribbonProfile)
+            {
+                if (importing || exporting || EditingField(e.target as VisualElement,key))return;
+                bool repeatable=key==KeyCode.LeftArrow || key==KeyCode.RightArrow || key==KeyCode.UpArrow || key==KeyCode.DownArrow ||
+                    e.ctrlKey && (key==KeyCode.Period || key==KeyCode.Comma);
+                var resolved=symbol.Present && !e.ctrlKey?symbol.Transform:key;
+                var mods=e.modifiers&(EventModifiers.Control|EventModifiers.Shift|EventModifiers.Alt|EventModifiers.Command);
+                var preset=ribbonKeys.FirstOrDefault(k=>k.key==resolved && k.mods==mods);
+                if(Replacement(preset?.id,CurrentKeyArea(e.target as VisualElement))==null &&
+                    (!repeatKey || repeatable) && !RibbonShortcut(resolved,e.ctrlKey,e.shiftKey,e.altKey || e.commandKey) && !RouteNamedKey(e,true,repeatKey))return;
             }
             else if (key==KeyCode.F10 || key==KeyCode.LeftAlt || key==KeyCode.RightAlt)
             {
                 if(menuLayer!=null)CloseMenu();
                 else if(focusedHeading!=null){FocusHeading(null);MenuRoot.Q("workspace").Focus();}
-                else FocusHeading(MmdMenu.Bar[0]);
+                else FocusHeading(combinedMenus[0]);
             }
             else if (e.altKey && !e.ctrlKey && !e.shiftKey)
             {
-                var group = MmdMenu.Bar.FirstOrDefault(g => g.Access(englishMenus) == (char)key);
+                var group = combinedMenus.FirstOrDefault(g => g.Access(englishMenus) == (char)key);
                 if (group != null) OpenGroup(group);
                 else if (key == KeyCode.Return || key == KeyCode.KeypadEnter) { CloseMenu(); Execute(Command.Fullscreen); }
                 else return;
@@ -220,22 +274,18 @@ namespace AvaAvaDance
                 if(key==KeyCode.Escape){FocusHeading(null);MenuRoot.Q("workspace").Focus();}
                 else if(key==KeyCode.DownArrow || key==KeyCode.Return)OpenGroup(focusedHeading);
                 else if(key==KeyCode.RightArrow || key==KeyCode.LeftArrow){
-                    int n=MmdMenu.Bar.Length;
-                    FocusHeading(MmdMenu.Bar[(Array.IndexOf(MmdMenu.Bar,focusedHeading)+n+(key==KeyCode.RightArrow?1:-1))%n]);
+                    int n=combinedMenus.Length;
+                    FocusHeading(combinedMenus[(Array.IndexOf(combinedMenus,focusedHeading)+n+(key==KeyCode.RightArrow?1:-1))%n]);
                 }else{
-                    var group=MmdMenu.Bar.FirstOrDefault(g=>g.Access(englishMenus)==(char)key);
+                    var group=combinedMenus.FirstOrDefault(g=>g.Access(englishMenus)==(char)key);
                     if(group==null)return;OpenGroup(group);
                 }
             }
             else
             {
                 if (importing || exporting) return;
-                for (var v = e.target as VisualElement; v != null; v = v.parent)
-                {
-                    if (v is TextField || v is FloatField || v is IntegerField || v is DropdownField || v is Slider || v is SliderInt) return;
-                    if ((v is Button || v is Toggle) && (key == KeyCode.Return || key == KeyCode.KeypadEnter || key == KeyCode.Space)) return;
-                }
-                if (!Shortcut(key, e.ctrlKey, e.shiftKey, e.altKey || e.commandKey)) return;
+                if (EditingField(e.target as VisualElement, key)) return;
+                if (!Shortcut(key, e.ctrlKey, e.shiftKey, e.altKey || e.commandKey) && !RouteNamedKey(e,true)) return;
             }
             e.PreventDefault(); e.StopImmediatePropagation();
         }

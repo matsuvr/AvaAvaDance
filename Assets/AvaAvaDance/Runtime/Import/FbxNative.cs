@@ -8,7 +8,7 @@ using UnityEngine.Rendering;
 namespace AvaAvaDance.Import
 {
     /// <summary>Windows x64 runtime FBX subset. Never uses AssetDatabase or executes package code.</summary>
-    public static class FbxNative
+    public static partial class FbxNative
     {
         const string Dll = "AvaFbx";
         [DllImport(Dll, CallingConvention=CallingConvention.Cdecl)] static extern IntPtr ava_load(byte[] data, int size, StringBuilder error, int capacity);
@@ -28,6 +28,66 @@ namespace AvaAvaDance.Import
         [DllImport(Dll, CallingConvention=CallingConvention.Cdecl)] static extern int ava_blend_frames(IntPtr scene,int n,int channel);
         [DllImport(Dll, CallingConvention=CallingConvention.Cdecl)] static extern float ava_blend_frame(IntPtr scene,int n,int channel,int frame,int[] controlPoints,int count,[Out]Vector3[] offsets);
         static string Utf8(IntPtr p) { if(p==IntPtr.Zero)return ""; int len=0;while(len<4096&&Marshal.ReadByte(p,len)!=0)len++; var b=new byte[len];Marshal.Copy(p,b,0,len);return Encoding.UTF8.GetString(b); }
+
+        static int SkinBinding(IntPtr scene,int node,int bone,out Matrix4x4 bind)
+        {
+            var values=new float[12];int joint=ava_bone(scene,node,bone,values);
+            bind=Matrix4x4.identity;
+            for(int c=0;c<4;c++)bind.SetColumn(c,new Vector4(values[c*3],values[c*3+1],values[c*3+2],c==3?1:0));
+            return joint;
+        }
+
+        static void MeasureJointVertices(IntPtr scene,int node,Matrix4x4[] world,RigMeasurements points)
+        {
+            int vc=ava_vertices(scene,node),bc=ava_bones(scene,node);
+            if(vc==0 || bc==0)return;
+            var joints=new int[bc];var matrices=new Matrix4x4[bc];bool needed=false;
+            for(int i=0;i<bc;i++){
+                joints[i]=SkinBinding(scene,node,i,out var bind);
+                if(!points.Uses(joints[i]))continue;
+                matrices[i]=world[joints[i]]*bind;needed=true;
+            }
+            if(!needed)return;
+            var raw=new float[checked(vc*12)];var ids=new int[checked(vc*4)];
+            if(ava_mesh_with_indices(scene,node,raw,ids,new int[vc],new int[vc],vc)!=vc)throw new InvalidOperationException("FBX triangulation failed.");
+            for(int i=0;i<vc;i++){
+                var v=new Vector3(raw[i*12],raw[i*12+1],raw[i*12+2]);
+                for(int s=0;s<4;s++){
+                    int link=ids[i*4+s];if(raw[i*12+8+s]<=0 || (uint)link>=bc || !points.Uses(joints[link]))continue;
+                    points.Sample(joints[link],matrices[link].MultiplyPoint3x4(v));
+                }
+            }
+        }
+
+        internal static Ava.Extensions.RigProfile ReadRig(UnityPackageReader.PackageAsset asset,UnityPackageReader.PackageAsset prefab=null)
+        {
+            var error=new StringBuilder(2048); var scene=ava_load(asset.Data,asset.Data.Length,error,error.Capacity);
+            if(scene==IntPtr.Zero)throw new InvalidOperationException(error.ToString());
+            try
+            {
+                int count=ava_nodes(scene); var names=new string[count]; var parents=new int[count]; var local=new Matrix4x4[count];
+                var t=new float[10];
+                for(int i=0;i<count;i++)
+                {
+                    names[i]=Utf8(ava_name(scene,i)); parents[i]=ava_parent(scene,i); ava_transform(scene,i,t);
+                    local[i]=Matrix4x4.TRS(new Vector3(t[0],t[1],t[2]),new Quaternion(t[3],t[4],t[5],t[6]),new Vector3(t[7],t[8],t[9]));
+                }
+                var rig=RigFiles.Build(asset.Path,asset.Guid,parents,names,local,out var world);
+                foreach(var pair in HumanoidPreview.BoneMap(asset.Meta)){
+                    var joint=Array.Find(rig.joints,j=>j.name==pair.Value);
+                    if(joint!=null)joint.role=pair.Key;
+                }
+                rig.shapes=PrefabPhysBones.ReadShapes(prefab,rig,world);
+                var measurements=new RigMeasurements(rig);
+                for(int i=0;i<count;i++)MeasureJointVertices(scene,i,world,measurements);
+                measurements.Finish();
+                var shapes=new SortedSet<string>(StringComparer.Ordinal);
+                for(int i=0;i<count;i++)for(int c=0;c<ava_blend_channels(scene,i);c++)
+                    if(ava_blend_frames(scene,i,c)>0)shapes.Add(Utf8(ava_blend_name(scene,i,c)));
+                rig.morphs=new List<string>(shapes).ToArray();return rig;
+            }
+            finally {ava_free(scene);}
+        }
 
         public static GameObject Load(byte[] bytes, string name)
         {
@@ -77,7 +137,7 @@ namespace AvaAvaDance.Import
                     if(bc>0)
                     {
                         var bones=new Transform[bc+1];var binds=new Matrix4x4[bc+1];bones[bc]=nodes[n];binds[bc]=Matrix4x4.identity;
-                        for(int b=0;b<bc;b++){var f=new float[12];int node=ava_bone(scene,n,b,f);if(node<0||node>=count)throw new InvalidOperationException("FBX has an unresolved skin bone.");bones[b]=nodes[node];var matrix=Matrix4x4.identity;for(int c=0;c<4;c++)matrix.SetColumn(c,new Vector4(f[c*3],f[c*3+1],f[c*3+2],c==3?1:0));binds[b]=matrix;}
+                        for(int b=0;b<bc;b++){int node=SkinBinding(scene,n,b,out binds[b]);if(node<0||node>=count)throw new InvalidOperationException("FBX has an unresolved skin bone.");bones[b]=nodes[node];}
                         var weights=new BoneWeight[vc];for(int v=0;v<vc;v++){int a=v*12;weights[v]=new BoneWeight{boneIndex0=ids[v*4],boneIndex1=ids[v*4+1],boneIndex2=ids[v*4+2],boneIndex3=ids[v*4+3],weight0=raw[a+8],weight1=raw[a+9],weight2=raw[a+10],weight3=raw[a+11]};if(raw[a+8]+raw[a+9]+raw[a+10]+raw[a+11]<=0)weights[v]=new BoneWeight{boneIndex0=bc,weight0=1};}
                         mesh.boneWeights=weights;mesh.bindposes=binds;var renderer=nodes[n].gameObject.AddComponent<SkinnedMeshRenderer>();renderer.sharedMesh=mesh;renderer.sharedMaterials=materials;renderer.bones=bones;renderer.rootBone=root.transform;renderer.localBounds=mesh.bounds;renderer.updateWhenOffscreen=true;
                     }
@@ -128,6 +188,8 @@ namespace AvaAvaDance.Import
     }
     public sealed class FbxOwnedResources : MonoBehaviour
     {
+        internal readonly Dictionary<(string guid,bool linear),Texture2D> PackageTextures = new();
+        internal readonly Dictionary<Renderer,string[]> FbxMaterialNames = new();
         public int SkippedShapes { get; internal set; }
         readonly List<UnityEngine.Object> owned=new List<UnityEngine.Object>();
         public void Own(UnityEngine.Object resource){if(resource!=null)owned.Add(resource);}

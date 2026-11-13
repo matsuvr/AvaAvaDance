@@ -11,7 +11,7 @@ namespace AvaAvaDance
         {
             public Transform Joint;
             public MotionTrack<BonePose> Track;
-            public Quaternion RestRotation;
+            public Quaternion RestRotation, EditingBasis;
         }
         enum BoneTool { Select, Rotate, Move }
 
@@ -82,7 +82,7 @@ namespace AvaAvaDance
                         vrmGaze.Runtime.LookAt.SetYawPitchManually(angles.y, -angles.x);
                     }
                 });
-                actor.bones.Add(new BoneBinding { Joint = joint, Track = track, RestRotation = restRotation }); actor.modelTracks.Add(track);
+                actor.bones.Add(new BoneBinding { Joint = joint, Track = track, RestRotation = restRotation, EditingBasis=ChildBasis(joint) }); actor.modelTracks.Add(track);
             }
             var weighted = new HashSet<Transform>(actor.avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true)
                 .SelectMany(s => s.bones.Where(j => j != null && j != s.transform)));
@@ -109,7 +109,7 @@ namespace AvaAvaDance
 
         static void DiscardHistory(Stack<KeyChange[]> history, System.Predicate<MotionTrack> discard)
         {
-            var retained = history.Where(group => !group.Any(change => discard(change.Track))).Reverse().ToArray();
+            var retained = history.Where(group => !group.Any(change => change.Track != null && discard(change.Track))).Reverse().ToArray();
             history.Clear(); foreach (var change in retained) history.Push(change);
         }
 
@@ -134,12 +134,14 @@ namespace AvaAvaDance
             if (actor.selectedBone == null) return;
             StopPlayback();
             var before=actor.selectedBone.Track.Current;
-            if(boneSelection.Contains(actor.selectedBone))foreach(var other in boneSelection) {
+            bool group=ribbonProfile && boneSelection.Contains(actor.selectedBone) && boneSelection.Count>1;
+            if(group)PoseSelection(pose);
+            else if(boneSelection.Contains(actor.selectedBone))foreach(var other in boneSelection) {
                 if(other==actor.selectedBone)continue;
                 var value=other.Track.Current;value.Position+=pose.Position-before.Position;
                 value.Rotation*=Quaternion.Inverse(before.Rotation)*pose.Rotation;other.Track.Preview(value);
             }
-            actor.selectedBone.Track.Preview(pose); InvalidateDynamics(); RefreshRigPreview();
+            if(!group)actor.selectedBone.Track.Preview(pose); InvalidateDynamics(); RefreshRigPreview();
             if (selectedTrack != actor.selectedBone.Track) SelectTrack(actor.selectedBone.Track);
             else { SyncControls(); RedrawOverlay(); }
         }
@@ -155,21 +157,26 @@ namespace AvaAvaDance
             {
                 if (e.button < 0 || e.button > 2) return;
                 target.Focus();StopPlayback();
+                if(ribbonProfile && e.button==1 && e.clickCount==2){FocusViewportPoint(e.localPosition);e.StopPropagation();return;}
+                if(e.button==0 && BeginRigHandle(e.localPosition)){
+                    dragging=true;dragButton=0;lastPoint=e.position;target.CapturePointer(e.pointerId);e.StopPropagation();return;
+                }
                 if (modelMode && e.button == 0 && boneTool == BoneTool.Select)
                 {
                     var hit = PickBone(e.localPosition);
                     if (hit != null) {
-                        if(e.shiftKey){
-                            var prior=new HashSet<BoneBinding>(boneSelection);
+                        if(ribbonProfile ? e.ctrlKey : e.shiftKey){
+                            var prior=new List<BoneBinding>(boneSelection);
                             if(prior.Count==0 && actor.selectedBone!=null)prior.Add(actor.selectedBone);
-                            if(!prior.Add(hit))prior.Remove(hit);
-                            var lead=prior.Contains(hit)?hit:prior.FirstOrDefault();
-                            if(lead!=null)SelectTrack(lead.Track);
-                            boneSelection.Clear();boneSelection.UnionWith(prior);RedrawOverlay();
+                            if(prior.Contains(hit))prior.Remove(hit);else prior.Add(hit);
+                            var lead=prior.LastOrDefault();
+                            SelectTrack(lead?.Track);
+                            boneSelection.Clear();boneSelection.AddRange(prior);RedrawOverlay();
                         }else SelectTrack(hit.Track);
                         e.StopPropagation();return;
                     }
                 }
+                if (ribbonProfile && modelMode && e.button == 0 && boneTool != BoneTool.Select) BeginDraftGesture();
                 dragging = true; dragButton = e.button; lastPoint = e.position;
                 target.CapturePointer(e.pointerId); e.StopPropagation();
             });
@@ -179,8 +186,9 @@ namespace AvaAvaDance
                 Vector2 now = e.position;
                 var delta = now - lastPoint; lastPoint = now;
                 if (delta.sqrMagnitude == 0) return;
+                if(DragRigHandle(delta,e.ctrlKey && !e.shiftKey,RotationMode(e.altKey,e.ctrlKey,e.shiftKey))){e.StopPropagation();return;}
                 if (modelMode && dragButton == 0 && boneTool != BoneTool.Select && actor.selectedBone != null)
-                    DragBone(delta);
+                    DragBone(delta,RotationMode(e.altKey,e.ctrlKey,e.shiftKey));
                 else
                 {
                     var pose = ActiveView;
@@ -200,7 +208,7 @@ namespace AvaAvaDance
                 if (target.HasPointerCapture(e.pointerId)) target.ReleasePointer(e.pointerId);
                 dragging = false;
             });
-            target.RegisterCallback<PointerCaptureOutEvent>(_ => dragging = false);
+            target.RegisterCallback<PointerCaptureOutEvent>(_ => { dragging = false; EndRigHandle(); });
             target.RegisterCallback<WheelEvent>(e =>
             {
                 var pose = ActiveView;
@@ -228,16 +236,19 @@ namespace AvaAvaDance
                     handle.RegisterCallback<PointerDownEvent>(e =>
                     {
                         if (e.button != 0) return;
-                        StopPlayback(); start = e.position; handle.CapturePointer(e.pointerId); e.StopPropagation();
+                        StopPlayback(); if (ribbonProfile) BeginDraftGesture(); start = e.position; handle.CapturePointer(e.pointerId); e.StopPropagation();
                     });
                     handle.RegisterCallback<PointerMoveEvent>(e =>
                     {
                         if (!handle.HasPointerCapture(e.pointerId)) return;
                         Vector2 now = e.position; var delta = now - start; start = now;
                         float pixels = Mathf.Abs(delta.x) >= Mathf.Abs(delta.y) ? delta.x : -delta.y;
-                        if (pixels != 0) DragAxis(index, rotate, pixels * (e.shiftKey ? 10 : e.ctrlKey ? .1f : 1));
+                        var gesture=rotate?RotationMode(e.altKey,e.ctrlKey,e.shiftKey):RotationGesture.Normal;
+                        float scale=gesture==RotationGesture.Normal?(e.shiftKey?10:e.ctrlKey?.1f:1):1;
+                        if(pixels!=0)DragAxis(index,rotate,pixels*scale,gesture);
                         e.StopPropagation();
                     });
+                    handle.RegisterCallback<PointerCaptureOutEvent>(_ => FinishDraftGesture());
                     handle.RegisterCallback<PointerUpEvent>(e =>
                     {
                         if (handle.HasPointerCapture(e.pointerId)) handle.ReleasePointer(e.pointerId);
@@ -247,28 +258,46 @@ namespace AvaAvaDance
             }
         }
 
-        void DragAxis(int index, bool rotate, float pixels)
+        void DragAxis(int index, bool rotate, float pixels,RotationGesture gesture=RotationGesture.Normal,bool keyboard=false)
         {
+            float degrees=pixels * (keyboard ? .025f*Mathf.Rad2Deg : .5f);
+            float distance=rotate?0:pixels*(keyboard?HeldTranslationScale():WorldPerPixel());
             Vector3 axis = Vector3.zero; axis[index] = 1;
             if (modelMode && actor.selectedBone != null)
             {
                 var pose = actor.selectedBone.Track.Current;
-                if (rotate) pose.Rotation *= Quaternion.AngleAxis(pixels * .5f, localAxes ? axis : actor.selectedBone.Joint.InverseTransformDirection(axis));
+                var editAxis=ribbonProfile?actor.selectedBone.EditingBasis*axis:axis;
+                if(rotate && gesture!=RotationGesture.Normal){
+                    var worldAxis=localAxes?actor.selectedBone.Joint.TransformDirection(editAxis):axis;
+                    RotateParentAndBone(actor.selectedBone,Quaternion.AngleAxis(degrees,worldAxis),gesture);return;
+                }
+                if (rotate) pose.Rotation *= Quaternion.AngleAxis(degrees, localAxes ? editAxis : actor.selectedBone.Joint.InverseTransformDirection(axis));
                 else
                 {
                     var joint = actor.selectedBone.Joint;
-                    var world = (localAxes ? joint.TransformDirection(axis) : axis) * (pixels * WorldPerPixel());
+                    var world = (localAxes ? joint.TransformDirection(editAxis) : axis) * distance;
                     pose.Position += joint.parent.InverseTransformVector(world);
                 }
                 PreviewBone(pose);
             }
+            else if (!modelMode && ribbonProfile && selectedTrack is MotionTrack<AccessoryPose>)
+            {
+                EditProp(p => { if (rotate) p.Rotation += axis * degrees; else p.Position += axis * (distance / SceneUnit); return p; });
+            }
             else if (!modelMode)
             {
                 var pose = cameraTrack.Current;
-                if (rotate) pose.Angles += axis * (pixels * .5f);
-                else pose.Center += axis * (pixels * WorldPerPixel() / SceneUnit);
+                if (rotate) pose.Angles += axis * degrees;
+                else pose.Center += axis * (distance / SceneUnit);
                 PreviewCameraPose(pose);
             }
+        }
+
+        float HeldTranslationScale()
+        {
+            Transform target=modelMode?actor.selectedBone?.Joint:selectedTrack==activeProp?.Track?activeProp?.Object.transform:null;
+            float distance=target==null?Mathf.Abs(ActiveView.Distance)*SceneUnit:Vector3.Distance(previewCamera.transform.position,target.position);
+            return distance*.0025f;
         }
 
         float WorldPerPixel()
@@ -278,12 +307,17 @@ namespace AvaAvaDance
             return 2 * height / Mathf.Max(1, viewport.contentRect.height);
         }
 
-        void DragBone(Vector2 delta)
+        void DragBone(Vector2 delta,RotationGesture gesture=RotationGesture.Normal)
         {
             var pose = actor.selectedBone.Track.Current;
             var joint = actor.selectedBone.Joint;
-            if (boneTool == BoneTool.Rotate)
-                pose.Rotation *= Quaternion.Euler(-delta.y * .5f, delta.x * .5f, 0);
+            if(boneTool==BoneTool.Rotate){
+                var turn=Quaternion.Euler(-delta.y*.5f,delta.x*.5f,0);
+                if(gesture!=RotationGesture.Normal){
+                    RotateParentAndBone(actor.selectedBone,joint.rotation*turn*Quaternion.Inverse(joint.rotation),gesture);return;
+                }
+                pose.Rotation*=turn;
+            }
             else
             {
                 Vector3 offset = (previewCamera.transform.right * delta.x - previewCamera.transform.up * delta.y) * WorldPerPixel();
@@ -324,6 +358,7 @@ namespace AvaAvaDance
             var p = ctx.painter2D;
             if (actor.avatar == null || !actor.avatar.activeSelf || previewCamera == null) return; DrawBodies(p);
             if(!modelMode || playing)return;
+            if(ribbonProfile){DrawRigHandles(p);if(!showMarkers)return;}
             foreach (var binding in actor.bones)
             {
                 if (!ProjectJoint(binding.Joint, out var point)) continue;

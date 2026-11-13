@@ -1,5 +1,7 @@
-"""Fetch the pinned FBX parser and Japanese font for a local application build."""
+"""Restore the pinned source, font and managed parser used by the player."""
 import hashlib
+import io
+import zipfile
 from pathlib import Path
 from urllib.request import urlopen
 
@@ -14,7 +16,26 @@ INPUTS = (
 )
 
 
+def restore_bundle_reader():
+    path = ROOT / "Assets/Plugins/AssetsTools.NET.dll"
+    digest = "6b03d589163623b67620fbbc6f425dcb47f856584bd3ab1a34c896b2666372e4"
+    if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == digest:
+        return
+    url = "https://api.nuget.org/v3-flatcontainer/assetstools.net/3.0.5/assetstools.net.3.0.5.nupkg"
+    with urlopen(url, timeout=60) as response:
+        package = response.read()
+    if hashlib.sha256(package).hexdigest() != "e3b79ad8271aa8d84df541ddecba2402448408fd648b33b6a3c2e2a9a1c1d384":
+        raise ValueError("Bundle reader package checksum mismatch")
+    with zipfile.ZipFile(io.BytesIO(package)) as archive:
+        library = archive.read("lib/netstandard2.0/AssetsTools.NET.dll")
+    if hashlib.sha256(library).hexdigest() != digest:
+        raise ValueError("Bundle reader checksum mismatch")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(library)
+
+
 def restore():
+    restore_bundle_reader()
     for relative, url, digest in INPUTS:
         path = ROOT / relative
         if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == digest:

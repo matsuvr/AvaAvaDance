@@ -35,13 +35,15 @@ namespace AvaAvaDance.Import
 #endif
         internal static bool RememberFolder
         {
-            get => PlayerPrefs.GetInt("RememberFileFolder", 1) != 0;
-            set => PlayerPrefs.SetInt("RememberFileFolder", value ? 1 : 0);
+            get => WorkspacePreferences.GetInt("RememberFileFolder", 1) != 0;
+            set => WorkspacePreferences.SetInt("RememberFileFolder", value ? 1 : 0);
         }
         public static string Open(string title = null, string extension = "unitypackage") => Choose(title, extension, false);
+        [ThreadStatic] internal static Func<string, string, bool, string> AutomationChooser;
         public static string Save(string title, string extension) => Choose(title, extension, true);
         private static string Choose(string title, string extension, bool saving)
         {
+            if (AutomationChooser != null) return AutomationChooser(title, extension, saving);
 #if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
             IntPtr buffer = Marshal.AllocHGlobal(65536);
             try
@@ -52,9 +54,9 @@ namespace AvaAvaDance.Import
                 if (extensions.Length > 1) foreach (string ext in extensions) filter += ext.ToUpperInvariant() + " (*." + ext + ")\0*." + ext + "\0";
                 var request = new OpenFileName { file = buffer, filter = filter+"\0", defaultExtension = extensions[0] };
                 string folderKey = "FileFolder." + extensions[0];
-                string previous = PlayerPrefs.GetString(folderKey, "");
+                string previous = WorkspacePreferences.GetString(folderKey, "");
                 string folder = extensions[0] switch {
-                    "x" => "Accessory", "vmd" => "Motion", "vpd" => "Pose", "vsq" => "Vsq", "wav" => "Wave",
+                    "x" => "Accessory", "vmd" => "Motion", "avamotion" => "Motion", "vpd" => "Pose", "vsq" => "Vsq", "wav" => "Wave",
                     "bmp" => "BackGround", "unitypackage" => "Model", _ => ""
                 };
                 string baseDir = System.IO.Path.GetDirectoryName(Application.dataPath);
@@ -66,7 +68,7 @@ namespace AvaAvaDance.Import
                 bool accepted = saving ? GetSaveFileNameW(request) : GetOpenFileNameW(request);
                 if (!accepted) return null;
                 string path = Marshal.PtrToStringUni(buffer);
-                if (RememberFolder) PlayerPrefs.SetString(folderKey, System.IO.Path.GetDirectoryName(path));
+                if (RememberFolder) WorkspacePreferences.SetString(folderKey, System.IO.Path.GetDirectoryName(path));
                 return path;
             }
             finally { Marshal.FreeHGlobal(buffer); }

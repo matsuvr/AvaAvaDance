@@ -8,9 +8,32 @@ using UnityEngine;
 
 namespace AvaAvaDance.Editor
 {
-    /// <summary>Build-time compiler. No shader source compilation happens in the player.</summary>
+    /// <summary>Builds Unity shader assets for runtime shader packs.</summary>
     public static class ShaderPackBuilder
     {
+        static GrabProfile[] ReadGrabPasses(string path)
+        {
+            if(!File.Exists(path) || !path.EndsWith(".shader",StringComparison.OrdinalIgnoreCase))return null;
+            string source=File.ReadAllText(path);
+            var grabs=new List<GrabProfile>();int pass=0;bool subshader=false;
+            var tokens=System.Text.RegularExpressions.Regex.Matches(source,
+                @"//[^\n]*|/\*[\s\S]*?\*/|(?:CGPROGRAM|CGINCLUDE)[\s\S]*?ENDCG|(?:HLSLPROGRAM|HLSLINCLUDE)[\s\S]*?ENDHLSL|""(?:\\.|[^""\\])*""|\bSubShader\b|\bGrabPass\s*\{(?<body>[^}]*)\}|\bUsePass\b|\bPass\s*\{",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            foreach(System.Text.RegularExpressions.Match token in tokens)
+            {
+                if(token.Value.Equals("SubShader",StringComparison.OrdinalIgnoreCase)){
+                    if(subshader)break;subshader=true;continue;
+                }
+                if(!subshader)continue;
+                if(token.Groups["body"].Success){
+                    var name=System.Text.RegularExpressions.Regex.Match(token.Groups["body"].Value,@"^\s*""([^""]+)""");
+                    grabs.Add(new GrabProfile{beforePass=pass++,texture=name.Success?name.Groups[1].Value:null});
+                }
+                else if(token.Value.StartsWith("Pass",StringComparison.OrdinalIgnoreCase) || token.Value.Equals("UsePass",StringComparison.OrdinalIgnoreCase))pass++;
+            }
+            return grabs.Count>0?grabs.ToArray():null;
+        }
+
         const string ManifestFolder = "Assets/AvaAvaDance/GeneratedShaderPack";
 
         [MenuItem("AvaAvaDance/Shader packs/Build selected shaders for Windows")]
@@ -34,7 +57,7 @@ namespace AvaAvaDance.Editor
             {
                 var shader = AssetDatabase.LoadAssetAtPath<Shader>(path);
                 if (shader == null) throw new InvalidOperationException("Shader asset missing: " + path);
-                entries.Add(new ShaderPackEntry { guid = AssetDatabase.AssetPathToGUID(path), name = shader.name, assetPath = path });
+                entries.Add(new ShaderPackEntry { guid = AssetDatabase.AssetPathToGUID(path), name = shader.name, assetPath = path, grabPasses=ReadGrabPasses(path) });
             }
             var manifest = new ShaderPackManifest { schema = 1, target = ShaderLibrary.Target, unity = ShaderLibrary.UnityVersion, pipeline = ShaderLibrary.Pipeline, graphicsApi = ShaderLibrary.GraphicsApi, shaders = entries.ToArray(), vpmPackage = package };
             ShaderLibrary.ValidateManifest(manifest);

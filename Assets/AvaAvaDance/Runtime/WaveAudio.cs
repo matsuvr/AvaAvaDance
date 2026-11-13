@@ -31,18 +31,77 @@ namespace AvaAvaDance
         void BuildWaveform(VisualElement sidebar)
         {
             waveform = Box(sidebar, "waveform", "waveform");
+            waveform.focusable=true;
             waveform.generateVisualContent += ctx =>
             {
                 var p = ctx.painter2D;
                 float w = waveform.contentRect.width, h = waveform.contentRect.height;
                 Line(p, new Vector2(0,h/2), new Vector2(w,h/2), Color.gray);
-                for (int col = 0; col < VisibleColumns && firstFrame + col < peaks.Length; col++)
+                bool audioTab=ribbonProfile && audioDockTab;
+                float offset=audioTab?0:NameWidth;
+                int columns=Mathf.CeilToInt((w-offset)/FrameWidth);
+                for (int col = 0; col < columns && firstFrame + col < peaks.Length; col++)
                 {
                     var range = peaks[firstFrame + col];
-                    float x = NameWidth + (col + .5f) * FrameWidth;
+                    float x = offset + (col + .5f) * FrameWidth;
                     Line(p, new Vector2(x, (.5f - range.y * .48f) * h), new Vector2(x, (.5f - range.x * .48f) * h), new Color(.1f,.32f,.15f));
                 }
+                if(audioTab){
+                    float x=(frame-firstFrame+.5f)*FrameWidth;
+                    Line(p,new Vector2(x,0),new Vector2(x,h),new Color(.2f,.45f,.8f));
+                }
             };
+            void ScrubAt(float x)=>SetFrame(Mathf.Clamp(firstFrame+Mathf.FloorToInt(x/FrameWidth),0,MaxFrame));
+            waveform.RegisterCallback<PointerDownEvent>(e=>{
+                if(!ribbonProfile || !audioDockTab || e.button!=0)return;
+                waveform.Focus();waveform.CapturePointer(e.pointerId);ScrubAt(e.localPosition.x);e.StopPropagation();
+            });
+            waveform.RegisterCallback<PointerMoveEvent>(e=>{if(waveform.HasPointerCapture(e.pointerId))ScrubAt(e.localPosition.x);});
+            waveform.RegisterCallback<PointerUpEvent>(e=>{if(waveform.HasPointerCapture(e.pointerId))waveform.ReleasePointer(e.pointerId);});
+        }
+
+        sealed class WaveState
+        {
+            public int channels,samples,rate;
+            public string name;
+            public Vector2[] amplitudes;
+            public float[] pcm;
+
+            public void Capture(AudioClip clip)
+            {
+                if(pcm!=null)return;
+                var data=new float[checked(clip.samples*clip.channels)];
+                if(!clip.GetData(data,0))throw new IOException("音声データを読み取れません。");
+                channels=clip.channels;samples=clip.samples;rate=clip.frequency;name=clip.name;pcm=data;
+            }
+            public AudioClip Restore()
+            {
+                var clip=AudioClip.Create(name,samples,channels,rate,false);
+                if(clip.SetData(pcm,0))return clip;
+                Destroy(clip);throw new IOException("音声を復元できません。");
+            }
+        }
+        readonly System.Runtime.CompilerServices.ConditionalWeakTable<AudioClip,WaveState> waves=new System.Runtime.CompilerServices.ConditionalWeakTable<AudioClip,WaveState>();
+        WaveState CurrentWave=>soundtrack.clip==null?null:waves.GetValue(soundtrack.clip,_=>new WaveState{amplitudes=peaks});
+        void ChangeWave(AudioClip incoming,Vector2[] amplitudes)
+        {
+            var before=CurrentWave;
+            var after=incoming==null?null:waves.GetValue(incoming,_=>new WaveState{amplitudes=amplitudes});
+            void Present(WaveState next,AudioClip original=null){
+                var current=CurrentWave;
+                current?.Capture(soundtrack.clip);
+                var clip=original;
+                if(next!=null && clip==null){clip=next.Restore();waves.Add(clip,next);}
+                StopPlayback();soundtrack.Stop();var old=soundtrack.clip;soundtrack.clip=clip;
+                if(old!=null)Destroy(old);
+                peaks=next?.amplitudes??Array.Empty<Vector2>();
+                timelineRevision++;waveform.MarkDirtyRepaint();SyncRibbonSeek();
+            }
+            Present(after,incoming);PushOperation(cameraTrack,(_,forward)=>Present(forward?after:before));
+        }
+        void DeleteAudio()
+        {
+            if(soundtrack.clip!=null && !loadingWave)ChangeWave(null,null);
         }
 
         IEnumerator LoadWave(string path)
@@ -64,11 +123,7 @@ namespace AvaAvaDance
                     if (clip == null || clip.samples < 1 || clip.frequency < 1 || clip.channels < 1 || clip.channels > 8)
                         throw new InvalidDataException("WAVの音声データを読み取れません。");
                     var amplitudes = ReadWaveform(clip);
-                    StopPlayback(); soundtrack.Stop();
-                    var previous = soundtrack.clip;
-                    soundtrack.clip = clip; clip = null;
-                    if (previous != null) Destroy(previous);
-                    peaks = amplitudes; waveform.MarkDirtyRepaint();
+                    ChangeWave(clip,amplitudes);clip=null;
                     status.text = Path.GetFileName(path) + "　" + soundtrack.clip.length.ToString("0.00") + " 秒";
                 }
                 catch (Exception ex) { status.text = "WAV読込中止　" + ex.Message; }

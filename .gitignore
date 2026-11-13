@@ -1,3 +1,10 @@
+/Tests/**/bin/
+/Tests/**/obj/
+/Examples/**/bin/
+/Examples/**/obj/
+/Extensions/**/bin/
+/Extensions/**/obj/
+
 # This .gitignore file should be placed at the root of your Unity project directory
 #
 # Get latest from https://github.com/github/gitignore/blob/main/Unity.gitignore
@@ -44,6 +51,9 @@
 ExportedObj/
 .consulo/
 *.csproj
+!/Tests/ExtensionHarness/ExtensionHarness.csproj
+!/Extensions/**/*.csproj
+!/Examples/**/*.csproj
 *.unityproj
 *.sln
 *.slnx
@@ -109,6 +119,8 @@ InitTestScene*.unity*
 /[Aa]ssets/[Ss]ceneDependencyCache*
 
 # Local verification artifacts
+__pycache__/
+/.uloop/outputs/
 /SmokeOutput/
 /Tests/ReaderHarness/bin/
 /Tests/ReaderHarness/obj/
@@ -150,6 +162,7 @@ InitTestScene*.unity*
 *.avadshader
 *.avadshader.meta
 /Assets/AvaAvaDance/Resources/MPLUS1p-Regular.ttf
+/Assets/Plugins/AssetsTools.NET.dll
 /Assets/Plugins/x86_64/*.dll
 /Native/ufbx.c
 /Native/ufbx.h

@@ -42,6 +42,7 @@ class UnityPackageReaderTests
         var vpm=UnityPackageReader.Read(new MemoryStream(Package(Member("./",new byte[0],'5'),Member("./"+G+"/",new byte[0],'5'),Member("./"+G+"/pathname",Bytes("Assets/installer/config.json")),A())));
         if(vpm.Count!=1 || vpm[0].Path!="Assets/installer/config.json")throw new Exception("VPM tar prefix");tests++;
         TestVpmInstaller();
+        ShaderInstallTests.Run();
         Reject("normalized duplicate",Package(P("Assets/a"),A(),Member("./"+G+"/asset",new byte[]{4})));
         Reject("prefixed traversal",Package(Member("./../asset",new byte[0])));
         foreach(var path in new[]{"../escape", "/absolute", "C:/absolute", "Assets/../escape", "Assets\\escape", "Assets//x", "Assets/./x", "Assets/x\0", "Assets/x.", "Assets/x "})Reject("path "+path,Package(P(path),A()));

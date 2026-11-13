@@ -1,3 +1,4 @@
+using MmdText = Ava.Extensions.MmdText;
 using System;
 using System.IO;
 using System.Linq;
@@ -27,7 +28,7 @@ namespace AvaAvaDance
                 using var e=KeyDownEvent.GetPooled(raw); e.target=destination; destination.SendEvent(e);
             }
             bool lang=englishMenus; if(lang)SwitchLanguage();
-            Check(MmdMenu.Bar.Length==7 && menuButtons.Count==7,"menu count");
+            Check(MmdMenu.Bar.Length==7 && menuButtons.Count==combinedMenus.Length,"menu count");
             foreach(var group in MmdMenu.Bar) {
                 Key((KeyCode)group.Access(false),EventModifiers.Alt);
                 Check(menuGroup==group,"Alt+"+group.Access(false));Key(KeyCode.Escape);
@@ -40,7 +41,7 @@ namespace AvaAvaDance
             Key(KeyCode.B,EventModifiers.Alt); Key(KeyCode.D); Check(viewOptions.black,"background mnemonic");
             Key(KeyCode.B);Check(!viewOptions.black,"B");
             if(Application.isBatchMode) {
-                Execute(Command.SeparateWindow);Check(detached.Active,"preview window opens");detached.Draw(previewTexture);
+                Execute(Command.SeparateWindow);Check(detached.Active,"preview window opens");
                 Execute(Command.Topmost);Check(previewTop,"topmost");Execute(Command.Topmost);
                 Execute(Command.SeparateWindow);Check(!detached.Active,"preview closes");
             }

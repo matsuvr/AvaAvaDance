@@ -11,12 +11,7 @@ namespace AvaAvaDance.Editor
     // Installed by restore_liltoon.py into the separate pack-authoring project.
     public static class LilToonPackBuilder
     {
-        static readonly string[] LilToonFiles = {
-            "lts.shader", "lts_o.shader", "lts_cutout.shader", "lts_cutout_o.shader", "lts_trans.shader", "lts_trans_o.shader",
-            "lts_onetrans.shader", "lts_onetrans_o.shader", "lts_twotrans.shader", "lts_twotrans_o.shader",
-            "ltsmulti.shader", "ltsmulti_o.shader", "lts_fakeshadow.shader",
-            "ltspass_opaque.shader", "ltspass_cutout.shader", "ltspass_transparent.shader"
-        };
+        static readonly string[] EditorOnlyShaders = { "ltspass_baker.shader", "ltspass_bakeramp.shader", "ltspass_dummy.shader", "ltspass_proponly.shader" };
 
         [MenuItem("AvaAvaDance/Build external lilToon pack")]
         public static void Build()
@@ -51,7 +46,9 @@ namespace AvaAvaDance.Editor
             File.Copy(root + "/LICENSE", output + "/lilToon-LICENSE.txt", true);
             File.Copy(root + "/Third Party Notices.md", output + "/lilToon-Third-Party-Notices.md", true);
             File.Copy(root + "/Shader/Includes/VRC Light Volumes/license.txt", output + "/VRC-Light-Volumes-LICENSE.txt", true);
-            var paths = LilToonFiles.Select(file => root + "/Shader/" + file).ToArray();
+            var paths = Directory.GetFiles(root + "/Shader", "*.shader")
+                .Where(path => !EditorOnlyShaders.Contains(Path.GetFileName(path)))
+                .Select(path => path.Replace('\\', '/')).OrderBy(path => path, StringComparer.Ordinal).ToArray();
             ShaderPackBuilder.Build(paths, output + "/liltoon.avadshader", package);
         }
     }

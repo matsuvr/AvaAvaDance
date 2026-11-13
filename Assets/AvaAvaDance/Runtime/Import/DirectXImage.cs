@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace AvaAvaDance.Import
 {
-    internal static class DirectXImage
+    internal static partial class DirectXImage
     {
         internal const string Extensions = "bmp;jpg;png;tga;dds;dib;pfm;hdr";
         [StructLayout(LayoutKind.Sequential)]

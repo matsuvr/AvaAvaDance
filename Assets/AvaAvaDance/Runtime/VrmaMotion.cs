@@ -25,8 +25,8 @@ namespace AvaAvaDance
             void Add(MotionTrack track, int f, object value)
             {
                 if (!ValidPose(value)) throw new InvalidDataException("変換した VRMA キーが編集可能範囲外です。");
-                if (changes.Count >= 250000) throw new InvalidDataException("VRMA の変換キー数が上限を超えています。");
-                changes.Add(new KeyChange { Track = track, Frame = start + f, After = value });
+                if (changes.Count >= MaxHumanoidKeys) throw new InvalidDataException("VRMA の変換キー数が上限を超えています。");
+                changes.Add(new KeyChange { Track = track, Frame = start + f, After = value, ReplaceSource=true });
             }
 
             // Combine rotations from optional source joints missing on this avatar
@@ -45,8 +45,8 @@ namespace AvaAvaDance
                 var curves = chain.Select(n => n.Rotation).ToList();
                 if (translation != null) curves.Add(translation);
                 var bind = actor.bindPose[target];
-                var basis = Quaternion.Inverse(actor.humanForward) * bind.InitialGlobalRotation;
-                var restOffset = Quaternion.Inverse(bone.RestRotation) * bind.InitialLocalRotation;
+                var basis = Quaternion.Inverse(actor.humanForward) * bind.WorldBasis;
+                var restOffset = Quaternion.Inverse(bone.RestRotation) * bind.Local;
                 float height = source.World.m13;
                 if (translation != null && (height < 1e-5f || actor.hipsHeight < 1e-5f))
                     throw new InvalidDataException("腰の基準高を取得できません。");
@@ -92,7 +92,7 @@ namespace AvaAvaDance
                 foreach (var eye in eyes)
                 {
                     if (!bindings.TryGetValue(eye, out var b)) continue;
-                    var basis = eye == actor.gaze ? Quaternion.identity : Quaternion.Inverse(actor.humanForward) * actor.bindPose[eye].InitialGlobalRotation;
+                    var basis = eye == actor.gaze ? Quaternion.identity : Quaternion.Inverse(actor.humanForward) * actor.bindPose[eye].WorldBasis;
                     foreach (int f in VrmaFrames(b.Track, new[] { clip.Gaze.Rotation }, start, end))
                     {
                         var p = b.Track.Sample(start + f);
@@ -104,7 +104,13 @@ namespace AvaAvaDance
                 }
             }
             if (changes.Count == 0) throw new InvalidDataException("モデルに対応するボーン・表情・視線がありません。");
+            CommitHumanoidMotion(changes,driven,start,end);
+            status.text = $"VRMA 読込　{driven.Count} ボーン・{expressions} 表情" +
+                (gaze ? "・視線" : "") + $"　{start}～{end} フレーム";
+        }
 
+        void CommitHumanoidMotion(List<KeyChange> changes, HashSet<Transform> driven, int start, int end)
+        {
             // MMD's default foot IK would pin the feet to their original positions.
             // Only disable chains affected by FK, preserving visibility and other IK keys.
             var ik = actor.ikChains.Where(c => driven.Any(t => c.Tip.IsChildOf(t))).Select(c => c.Handle.Track.Name).ToArray();
@@ -114,15 +120,13 @@ namespace AvaAvaDance
                 {
                     var state = actor.modelSwitch.Sample(f);
                     state.DisabledIK = (state.DisabledIK ?? Array.Empty<string>()).Union(ik).ToArray();
-                    Add(actor.modelSwitch, f-start, state);
+                    changes.Add(new KeyChange {Track=actor.modelSwitch,Frame=f,After=state});
                 }
                 if (end < MaxFrame && actor.modelTracks.Any(t => t.LastFrame > end))
-                    Add(actor.modelSwitch, clip.LastFrame+1, actor.modelSwitch.Sample(end+1));
+                    changes.Add(new KeyChange {Track=actor.modelSwitch,Frame=end+1,After=actor.modelSwitch.Sample(end+1)});
             }
             CommitKeys(changes);
             SetFrame(frame);
-            status.text = $"VRMA 読込　{driven.Count} ボーン・{expressions} 表情" +
-                (gaze ? "・視線" : "") + $"　{start}～{end} フレーム";
         }
 
         static SortedSet<int> VrmaFrames(MotionTrack track, IEnumerable<VrmaClip.Curve> curves, int start, int end, bool coupled = false)

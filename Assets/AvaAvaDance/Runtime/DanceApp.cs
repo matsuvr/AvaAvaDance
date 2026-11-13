@@ -50,14 +50,16 @@ namespace AvaAvaDance
             root.Add(scroll);
             var workspace = Box(scroll, "workspace", "workspace");
             workspace.focusable = true;
+            BuildProfileBar(workspace);
             var menu = Box(workspace, "menu", "row", "menu");
-            BuildMmdMenus(menu);
+            LoadExtensions(); BuildMmdMenus(menu);
+            BuildRibbon(workspace);
             var main = Box(workspace, "main", "main");
             var sidebar = Box(main, "sidebar", "sidebar");
-            var header = new Label("ボーン・フレーム操作");
+            var header = new Label("ボーン・フレーム操作"){name="track-heading"};
             header.AddToClassList("header"); header.AddToClassList("frame-header"); sidebar.Add(header);
             BuildTimeline(sidebar);
-            BuildInterpolation(sidebar);
+            BuildInterpolation(sidebar);BuildRibbonTimelineTabs(sidebar);
 
             var right = Box(main, "right", "right");
             viewport = Box(right, "viewport", "viewport");
@@ -66,6 +68,7 @@ namespace AvaAvaDance
             note.AddToClassList("viewport-note"); viewport.Add(note);
             BuildTransformBar(right);
             var bottom = Box(right, "bottom", "bottom");
+            BuildTransport(workspace,bottom);
             var model = Panel(bottom, "model", "モデル操作");
             modeField = Choice(model, new[] { SceneModeName });
             modeField.RegisterValueChangedCallback(evt => ChooseMode(evt.newValue));
@@ -93,9 +96,10 @@ namespace AvaAvaDance
             status.AddToClassList("status"); workspace.Add(status);
             SetupAvatarImport(model, viewport);
             EnsurePreview();
-            BuildSceneTracks(); InitEnvironment(); InitView();
-            ChangeMode(false); workspace.schedule.Execute(workspace.Focus); MarkSaved();
+            BuildSceneTracks(); InitEnvironment(); InitView(); InitSurfaceRendering();
+            ChangeMode(false); ApplyProfile(WorkspacePreferences.GetInt(ProfilePreference) == 1); workspace.schedule.Execute(workspace.Focus); MarkSaved();
             Application.wantsToQuit += QuitProject;
+            StartMcp();
         }
 
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
@@ -111,6 +115,7 @@ namespace AvaAvaDance
                 using var process = System.Diagnostics.Process.GetCurrentProcess();
                 playerWindow = process.MainWindowHandle;
                 if (playerWindow == IntPtr.Zero) return;
+                physicalMainKeys=ava_editor_keyboard(playerWindow)!=0;
             }
 
             uint dpi = GetDpiForWindow(playerWindow);
@@ -182,6 +187,6 @@ namespace AvaAvaDance
             painter.strokeColor = color; painter.lineWidth = 1;
             painter.BeginPath(); painter.MoveTo(start); painter.LineTo(end); painter.Stroke();
         }
-        private void OnDestroy() { ClearBullet(); Application.wantsToQuit -= QuitProject; if (soundtrack != null && soundtrack.clip != null) Destroy(soundtrack.clip); DisposeView(); DisposePreview(); if (panel != null) Destroy(panel); }
+        private void OnDestroy() { StopMcp(); if(physicalMainKeys)ava_editor_keyboard(IntPtr.Zero); SaveWorkspacePosition(); operations?.Dispose();floatingTime?.Dispose();floatingWave?.Dispose(); DisposeExtensions(); DisposeSurfaceRendering(); ClearBullet(); Application.wantsToQuit -= QuitProject; if (soundtrack != null && soundtrack.clip != null) Destroy(soundtrack.clip); DisposeView(); DisposePreview(); if (panel != null) Destroy(panel); }
     }
 }
