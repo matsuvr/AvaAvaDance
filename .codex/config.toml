@@ -1,0 +1,4 @@
+[mcp_servers.avaavadance]
+command = "uv"
+args = ["run", "--script", "Tools/ava_mcp.py"]
+startup_timeout_sec = 60

@@ -23,6 +23,8 @@ namespace AvaAvaDance.Import
         }
         private readonly List<string> keywords = new List<string>();
         public IReadOnlyList<string> Keywords { get { return keywords.AsReadOnly(); } }
+        public List<string> DisabledPasses { get; } = new List<string>();
+        public Dictionary<string,string> Tags { get; } = new Dictionary<string,string>(StringComparer.Ordinal);
         public string Name { get; private set; }
         public string ShaderGuid { get; private set; }
         public long ShaderFileId { get; private set; }
@@ -38,7 +40,7 @@ namespace AvaAvaDance.Import
             if (yaml.Length > MaxUtf8Bytes || Encoding.UTF8.GetByteCount(yaml) > MaxUtf8Bytes)
                 throw Bad("Material text exceeds 2 MiB.");
             var result = new UnityMaterialData();
-            bool root=false, saved=false, document=false;
+            bool root=false, saved=false, document=false, tags=false;
             string section=null, keywordSection=null;
             int propertyCount=0, lines=0;
             TextureReference texture=null;
@@ -74,7 +76,13 @@ namespace AvaAvaDance.Import
                     if(indent==0) throw Bad("Multiple YAML roots are unsupported.");
                     if(indent==2 && t.StartsWith("- ",StringComparison.Ordinal))
                     {
-                        if(keywordSection=="m_ValidKeywords") result.AddKeyword(Scalar(t.Substring(2).Trim()));
+                        if(keywordSection=="disabledShaderPasses")
+                        {
+                            var pass=Scalar(t.Substring(2).Trim());
+                            if(pass.Length==0 || pass.Length>128 || result.DisabledPasses.Count>=64) throw Bad("Invalid disabled shader pass.");
+                            result.DisabledPasses.Add(pass);
+                        }
+                        else if(keywordSection=="m_ValidKeywords") result.AddKeyword(Scalar(t.Substring(2).Trim()));
                         else if(keywordSection=="m_InvalidKeywords") RejectActiveScalar(t.Substring(2).Trim());
                         else throw Bad("Unexpected material sequence.");
                         continue;
@@ -82,7 +90,7 @@ namespace AvaAvaDance.Import
                     if(keywordSection!=null && indent>2) throw Bad("Unsupported keyword indentation.");
                     if(indent==2)
                     {
-                        saved=false; section=null; texture=null; keywordSection=null;
+                        saved=false; section=null; texture=null; keywordSection=null; tags=false;
                         string key,value; Split(t,out key,out value);
                         if(key=="m_Name" || key=="m_Shader" || key=="m_CustomRenderQueue" || key=="m_SavedProperties")
                         {
@@ -100,14 +108,26 @@ namespace AvaAvaDance.Import
                             if(tokens.Length>64) throw Bad("Too many shader keyword tokens.");
                             foreach(string token in tokens) result.AddKeyword(token);
                         }
-                        else if(key=="m_ValidKeywords" || key=="m_InvalidKeywords")
+                        else if(key=="m_ValidKeywords" || key=="m_InvalidKeywords" || key=="disabledShaderPasses")
                         {
                             if(!fields.Add(key)) throw Bad("Duplicate keyword field.");
                             if(value.Length!=0 && value!="[]") throw Bad("Invalid keyword sequence.");
                             keywordSection=value.Length==0?key:null;
                         }
+                        else if(key=="stringTagMap")
+                        {
+                            if(!fields.Add(key) || (value.Length!=0 && value!="{}")) throw Bad("Invalid material tag map.");
+                            tags=value.Length==0;
+                        }
                         else RejectActiveScalar(value);
                         continue;
+                    }
+                    if(tags)
+                    {
+                        string key,value; Split(t,out key,out value);
+                        key=Scalar(key); value=Scalar(value);
+                        if(indent!=4 || key.Length>128 || value.Length>256 || result.Tags.Count>=64 || result.Tags.ContainsKey(key)) throw Bad("Invalid material tag.");
+                        result.Tags.Add(key,value); continue;
                     }
                     if(!saved) continue;
                     if(indent==4 && !t.StartsWith("- ",StringComparison.Ordinal))
@@ -132,7 +152,10 @@ namespace AvaAvaDance.Import
                         if(section=="m_Floats") result.Floats.Add(key,Number(value));
                         else if(section=="m_Ints") result.Ints.Add(key,Integer(value));
                         else if(section=="m_Colors")
-                        {var v=Map(value); Require(v,"r","g","b","a"); result.Colors.Add(key,new Float4(Number(v["r"]),Number(v["g"]),Number(v["b"]),Number(v["a"])));}
+                        {
+                            var v=Map(value); Require(v,"r","g","b","a");
+                            result.Colors.Add(key,new Float4(VectorComponent(v["r"]),VectorComponent(v["g"]),VectorComponent(v["b"]),VectorComponent(v["a"])));
+                        }
                         else
                         {
                             if(value.Length!=0) throw Bad("Invalid texture property.");
@@ -241,6 +264,13 @@ namespace AvaAvaDance.Import
         {int n;if(!int.TryParse(text,NumberStyles.AllowLeadingSign,CultureInfo.InvariantCulture,out n))throw Bad("Invalid integer material value.");return n;}
         private static float Number(string text)
         {float n;if(!float.TryParse(text,NumberStyles.Float,CultureInfo.InvariantCulture,out n)||float.IsNaN(n)||float.IsInfinity(n))throw Bad("Invalid float material value.");return n;}
+        private static float VectorComponent(string text)
+        {
+            // Unity serializes shader vectors in m_Colors. Particle fade reciprocals can be infinite.
+            if (text == "Infinity") return float.PositiveInfinity;
+            if (text == "-Infinity") return float.NegativeInfinity;
+            return Number(text);
+        }
         private static InvalidDataException Bad(string text){return new InvalidDataException(text);}
     }
 }

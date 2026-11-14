@@ -117,7 +117,7 @@ API int ava_bullet_allow(World* w,int collider,int body) {
 
 API int ava_bullet_joint(World* w,int parent,int child,const Pose* pivot,const Vec* limits,float spring,float damping) {
     if(!w || parent==child || !w->get(parent) || !w->get(child) || !pivot || !validPose(*pivot) ||
-       !limits || !finite(*limits) || !std::isfinite(spring) || spring<0 || !unit(damping))return 0;
+       !limits || !finite(*limits) || !std::isfinite(spring) || spring<0 || !std::isfinite(damping) || damping<0)return 0;
     try {
         auto& a=*w->get(parent)->rigid;auto& b=*w->get(child)->rigid;
         const btTransform bind=transform(*pivot);
@@ -147,6 +147,23 @@ API void ava_bullet_drive(World* w,int id,int follow,const Pose* target) {
         b->kinematic=kinematic;rb.activate(true);
     }
     if(kinematic)b->motion->setWorldTransform(transform(*target));
+}
+API void ava_bullet_transport(World* w,int body,int anchor,const Pose* delta) {
+    if(!w || !w->get(body) || !w->get(anchor) || !delta || !validPose(*delta))return;
+    const btTransform move=transform(*delta);
+    // Carry both sides of the joint. Bullet derives kinematic velocity from the
+    // prior interpolation transform, so carrying only the tip would add an impulse.
+    for(int id:{body,anchor}) {
+        auto& b=*w->get(id);
+        auto& rb=*b.rigid;
+        const auto previous=move*rb.getInterpolationWorldTransform();
+        const auto current=move*rb.getWorldTransform();
+        rb.setLinearVelocity(move.getBasis()*rb.getLinearVelocity());
+        rb.setAngularVelocity(move.getBasis()*rb.getAngularVelocity());
+        rb.setCenterOfMassTransform(current);
+        rb.setInterpolationWorldTransform(previous);
+        b.motion->setWorldTransform(current);
+    }
 }
 API void ava_bullet_step(World* w,const Vec* gravity) {
     if(!w || !gravity || !finite(*gravity))return;

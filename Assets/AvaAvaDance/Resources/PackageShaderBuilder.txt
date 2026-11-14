@@ -1,0 +1,46 @@
+using System;
+using System.IO;
+using System.Linq;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.Rendering;
+
+// This trusted builder is the only C# imported into the isolated shader project.
+public static class AvaPackageShaderBuilder
+{
+    [Serializable] public sealed class Manifest
+    {
+        public int schema = 1;
+        public string target = "StandaloneWindows64", unity = "2022.3.22f1", pipeline = "BuiltIn", graphicsApi = "Direct3D11";
+        public Entry[] shaders;
+    }
+    [Serializable] public sealed class Entry { public string guid, name, assetPath; }
+    public static void Build()
+    {
+        if (Application.unityVersion != "2022.3.22f1") throw new Exception("Unity 2022.3.22f1 is required.");
+        PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneWindows64, false);
+        PlayerSettings.SetGraphicsAPIs(BuildTarget.StandaloneWindows64, new[] { GraphicsDeviceType.Direct3D11 });
+        var paths = AssetDatabase.FindAssets("t:Shader", new[] { "Assets" }).Select(AssetDatabase.GUIDToAssetPath)
+            .Where(p => !p.Contains("/Editor/") && !p.EndsWith("_urp.shader", StringComparison.OrdinalIgnoreCase)).OrderBy(p => p, StringComparer.Ordinal).ToArray();
+        if (paths.Length < 1 || paths.Length > 64) throw new Exception("The package must contain 1 to 64 ShaderLab shaders.");
+        var entries = paths.Select(path => {
+            var shader = AssetDatabase.LoadAssetAtPath<Shader>(path);
+            if (shader == null || ShaderUtil.ShaderHasError(shader)) throw new Exception("Shader compilation failed: " + path);
+            return new Entry { guid = AssetDatabase.AssetPathToGUID(path), name = shader.name, assetPath = path };
+        }).ToArray();
+        Directory.CreateDirectory("Assets/AvaPack");
+        const string manifestPath = "Assets/AvaPack/manifest.json";
+        File.WriteAllText(manifestPath, JsonUtility.ToJson(new Manifest { shaders = entries }, true));
+        AssetDatabase.ImportAsset(manifestPath, ImportAssetOptions.ForceSynchronousImport);
+        Directory.CreateDirectory("Output");
+        string bundleName = "avashader-" + entries[0].guid + ".avadshader";
+        var build = new AssetBundleBuild {
+            assetBundleName = bundleName, assetNames = paths.Concat(new[] { manifestPath }).ToArray(),
+            addressableNames = paths.Concat(new[] { "avadance-shader-manifest" }).ToArray()
+        };
+        if (BuildPipeline.BuildAssetBundles("Output", new[] { build }, BuildAssetBundleOptions.ChunkBasedCompression | BuildAssetBundleOptions.StrictMode, BuildTarget.StandaloneWindows64) == null)
+            throw new Exception("Shader pack build failed.");
+        File.Copy(Path.Combine("Output", bundleName), "Output/shaders.avadshader", true);
+        Debug.Log("AVA_PACKAGE_SHADERS_BUILT " + entries.Length);
+    }
+}

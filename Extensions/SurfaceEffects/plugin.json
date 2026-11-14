@@ -1,0 +1,22 @@
+{
+  "manifestVersion": 1,
+  "displayName": "AvaAvaEffect",
+  "id": "ava.mme",
+  "version": "1.0.0",
+  "sdk": {
+    "major": 1,
+    "minMinor": 0
+  },
+  "entry": {
+    "assembly": "managed/Ava.SurfaceEffects.dll",
+    "type": "Ava.SurfaceEffects.EffectPlugin"
+  },
+  "dependencies": [],
+  "services": [
+    "classic-ui",
+    "scene",
+    "render",
+    "project-state"
+  ],
+  "stateSchema": 1
+}

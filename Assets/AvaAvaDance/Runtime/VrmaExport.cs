@@ -73,7 +73,7 @@ namespace AvaAvaDance
                 var indices = human.Select((h, i) => (h.Value, i)).ToDictionary(k => k.Value, k => k.i);
                 var parents = new int[human.Length];
                 var rotations = human.Select(_ => new RotationSamples()).ToArray();
-                var inverseBind = human.Select(h => Quaternion.Inverse(actor.bindPose[h.Value].InitialGlobalRotation) * actor.humanForward).ToArray();
+                var inverseBind = human.Select(h => Quaternion.Inverse(actor.bindPose[h.Value].WorldBasis) * actor.humanForward).ToArray();
                 var deltas = new Quaternion[human.Length];
                 var hip = actor.humanBones[HumanBodyBones.Hips];
                 int count = end+1;
@@ -111,7 +111,7 @@ namespace AvaAvaDance
                         foreach (var b in actor.bones) b.Track.Seek(f);
                         actor.modelSwitch.Seek(f);
                         SolveIK();
-                        for (int i = 0; i < human.Length; i++) deltas[i] = facing * human[i].Value.rotation * inverseBind[i];
+                        for (int i = 0; i < human.Length; i++) deltas[i] = facing * HumanoidBindRotation.RotationBasis(human[i].Value) * inverseBind[i];
                         for (int i = 0; i < human.Length; i++)
                             rotations[i].Add(f, parents[i] < 0 ? deltas[i] : Quaternion.Inverse(deltas[parents[i]]) * deltas[i]);
                         var p = facing * (hip.position - root.position) * unit;
@@ -152,7 +152,8 @@ namespace AvaAvaDance
                         var name = faceNames[track];
                         if (name == "lookLeft" || name == "lookRight" || name == "lookUp" || name == "lookDown") continue;
                         int node = Node("expression_" + name, Vector3.zero); roots.Add(node); NodeRef(name, node);
-                        Channel(node, "translation", track.Frames, track.Frames.Select(f => new Vector3((float)track.KeyAt(f), 0, 0)).ToArray());
+                        var times = track.OutputFrames().ToArray();
+                        Channel(node, "translation", times, times.Select(f => new Vector3(track.Sample(f), 0, 0)).ToArray());
                     }
                     ext.EndMap();
                 }
@@ -166,7 +167,7 @@ namespace AvaAvaDance
             {
                 int node = Node("lookAt", Vector3.zero); roots.Add(node); NodeRef("lookAt", node);
                 var samples = new RotationSamples();
-                var basis = eye == actor.gaze ? Quaternion.identity : Quaternion.Inverse(actor.humanForward) * actor.bindPose[eye].InitialGlobalRotation;
+                var basis = eye == actor.gaze ? Quaternion.identity : Quaternion.Inverse(actor.humanForward) * actor.bindPose[eye].WorldBasis;
                 for (int f = 0; f <= gaze.Track.LastFrame; f++)
                     samples.Add(f, basis * gaze.Track.Sample(f).Rotation * Quaternion.Inverse(basis));
                 Channel(node, "rotation", samples.Frames, samples.Values.ToArray());

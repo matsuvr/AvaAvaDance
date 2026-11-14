@@ -9,6 +9,7 @@ Shader "AvaAvaDance/ShadowGround" {
             #pragma vertex vert
             #pragma fragment frag
             #include "UnityCG.cginc"
+            #define _AvaShadowDepth _AvaGroundDepth
             #include "AvatarShadow.cginc"
             struct v2f { float4 pos : SV_POSITION; float3 world:TEXCOORD0; };
             v2f vert(appdata_base v) {

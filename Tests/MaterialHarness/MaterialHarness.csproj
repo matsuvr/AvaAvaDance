@@ -1,1 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup><ItemGroup><Compile Include="../../Assets/AvaAvaDance/Runtime/Import/UnityMaterialData.cs"/><Compile Include="../UnityMaterialDataTests.cs"/></ItemGroup></Project>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/AvaAvaDance/Runtime/Import/UnityMaterialData.cs"/>
+    <Compile Include="../../Assets/AvaAvaDance/Runtime/Import/PackageTextureSettings.cs"/>
+    <Compile Include="../../Assets/AvaAvaDance/Runtime/Import/AvatarMaterialBindings.cs"/>
+    <Compile Include="../../Assets/AvaAvaDance/Runtime/Import/UnityPackageReader.cs"/>
+    <Compile Include="../UnityMaterialDataTests.cs"/>
+  </ItemGroup>
+</Project>

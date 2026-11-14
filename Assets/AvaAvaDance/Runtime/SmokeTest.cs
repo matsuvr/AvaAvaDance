@@ -16,6 +16,71 @@ namespace AvaAvaDance
             var args=Environment.GetCommandLineArgs();
             int input=Array.IndexOf(args,"-avaSmokePackage"), output=Array.IndexOf(args,"-avaSmokeOutput");
             int projectArg=Array.IndexOf(args,"-avaProjectSmoke");
+            if(output>=0 && output+1<args.Length){
+                string destination=args[output+1];Directory.CreateDirectory(destination);
+                int humanoid=Array.IndexOf(args,"-avaHumanoidMotionSmoke");
+                int skeleton=Array.IndexOf(args,"-avaSkeletonSamples");
+                if (humanoid>=0 || skeleton>=0)
+                {
+                    Application.runInBackground=true;
+                    for (int i=0;i<10;i++) yield return null;
+                    string verdict;
+                    try
+                    {
+                        verdict=skeleton>=0 ? SampleHumanoidSkeleton(args[skeleton+1],args[skeleton+2],destination)
+                            : CheckHumanoidMotion(args[humanoid+1],args[humanoid+2],destination);
+                    }
+                    catch(Exception ex) { verdict="FAIL "+ex; Debug.LogException(ex); }
+                    File.WriteAllText(Path.Combine(destination,"result.txt"),verdict);
+                    Application.Quit(verdict.StartsWith("PASS")?0:1); yield break;
+                }
+                int mixed=Array.IndexOf(args,"-avaMixedShaderSmoke");
+                if(mixed>=0 && mixed+5<args.Length)
+                {
+                    Application.runInBackground=true; for(int i=0;i<12;i++)yield return null;
+                    string verdict;
+                    var check=CheckMixedShaders(args[mixed+1],args[mixed+2],args[mixed+3],args[mixed+4],args[mixed+5],destination);
+                    while(!check.IsCompleted)yield return null;
+                    try { verdict=check.GetAwaiter().GetResult(); }
+                    catch(Exception ex){Debug.LogException(ex);verdict="FAIL "+ex;}
+                    SaveSmokeVerdict(destination,"-avaMixedShaderSmoke",args[mixed+1],verdict);
+                    Application.Quit(verdict.StartsWith("PASS")?0:1);yield break;
+                }
+                int shaderSmoke=Array.IndexOf(args,"-avaOfficialShaderSmoke");
+                if(shaderSmoke>=0 && shaderSmoke+3<args.Length){
+                    Application.runInBackground=true;for(int i=0;i<12;i++)yield return null;
+                    var verification=CheckOfficialShaders(destination,args[shaderSmoke+1],args[shaderSmoke+2],args[shaderSmoke+3]);
+                    while(!verification.IsCompleted)yield return null;
+                    string verdict=verification.GetAwaiter().GetResult();
+                    SaveSmokeVerdict(destination,"-avaOfficialShaderSmoke",null,verdict);
+                    Application.Quit(verdict.StartsWith("PASS")?0:1);yield break;
+                }
+                if(args.Contains("-avaLayoutSmoke")){
+                    Application.runInBackground=true;for(int i=0;i<12;i++)yield return null;
+                    string error=null;yield return CheckSymbolLayouts(destination,s=>error=s);
+                    SaveSmokeVerdict(destination,"-avaLayoutSmoke",null,error??"PASS keyboard layout and held transform");
+                    Application.Quit(error==null?0:1);yield break;
+                }
+                if(args.Contains("-avaImeSmoke") || args.Contains("-avaDpiSmoke")){
+                    Application.runInBackground=true;for(int i=0;i<12;i++)yield return null;
+                    string imeVerdict=null;yield return CheckDetachedEditor(destination,error=>imeVerdict=error);
+                    imeVerdict??="PASS independent window input and display";
+                    SaveSmokeVerdict(destination,string.Join(" ",args.Where(v=>v=="-avaImeSmoke" || v=="-avaDpiSmoke")),null,imeVerdict);
+                    Application.Quit(imeVerdict.StartsWith("PASS")?0:1);yield break;
+                }
+                if(args.Contains("-avaExtensionUiSmoke")){yield return CheckExtensionWindows(destination);yield break;}
+                int sizing=Array.IndexOf(args,"-avaSizingSmoke"),effects=Array.IndexOf(args,"-avaEffectSmoke");
+                if(effects<0)effects=Array.IndexOf(args,"-avaMmeSmoke");
+                int config=sizing>=0?sizing:effects;
+                if(config>=0){
+                    Application.runInBackground=true;for(int i=0;i<20;i++)yield return null;
+                    string verdict;
+                    try{verdict=RunFileSmoke(sizing>=0,args[config+1],destination);}
+                    catch(Exception ex){verdict="FAIL "+ex;Debug.LogException(ex);}
+                    SaveSmokeVerdict(destination,args[config],args.ElementAtOrDefault(config+1),verdict);
+                    Application.Quit(verdict.StartsWith("PASS")?0:1);yield break;
+                }
+            }
             int vrmArg = Array.IndexOf(args, "-avaVrmSmoke");
             if (vrmArg >= 0 && output >= 0)
             {
@@ -52,7 +117,9 @@ namespace AvaAvaDance
             for(int i=0;i<20;i++) yield return null;
             string result;
             int packArg=Array.IndexOf(args,"-avaShaderPack");
-            var loadPack = packArg>=0 && packArg+1<args.Length ? LoadShaderFile(args[packArg+1]) : null;
+            bool latePack=args.Contains("-avaLateShaderPack");
+            if(latePack){shaderLibrary.Dispose();shaderLibrary=new ShaderLibrary();}
+            var loadPack = !latePack && packArg>=0 && packArg+1<args.Length ? LoadShaderFile(args[packArg+1]) : null;
             while (loadPack != null && !loadPack.IsCompleted) yield return null;
             int wavArg = Array.IndexOf(args, "-avaSmokeWav");
             if (wavArg >= 0) yield return LoadWave(args[wavArg + 1]);
@@ -70,6 +137,8 @@ namespace AvaAvaDance
                     .Single(a=>a.Prefab!=null && Path.GetFileName(a.Prefab.Path)==args[prefabArg+1]).Prefab
                     : PackageAvatar.LegacyPrefab(package,model);
                 ImportModel(model,package,prefab);
+                if(latePack){shaderLibrary.Load(args[packArg+1]);ReapplyPackageShaders();}
+                if(args.Contains("-avaMaterialSmoke"))CheckPrefabMaterials(model,prefab,package,directory);
                 if(args.Contains("-avaPhysBoneSmoke"))CheckPhysBones();
                 if(args.Contains("-avaBulletSmoke"))CheckBulletWorkflow(directory);
                 Debug.Log("AVA_ROOT_RECT " + GetComponent<UnityEngine.UIElements.UIDocument>().rootVisualElement.worldBound + " VIEW=" + viewport.worldBound);
@@ -82,6 +151,19 @@ namespace AvaAvaDance
                 var skin=actor.avatar.GetComponentsInChildren<SkinnedMeshRenderer>().FirstOrDefault(s => s.bones.Length > 1);
                 if(skin!=null) { var before=new Mesh(); var after=new Mesh(); skin.BakeMesh(before); var rotation=skin.bones[0].localRotation; skin.bones[0].localRotation=Quaternion.Euler(0,0,25)*rotation; skin.BakeMesh(after); bool changed=false; for(int v=0;v<before.vertexCount;v++) if(Vector3.Distance(before.vertices[v],after.vertices[v])>.001f) changed=true; skin.bones[0].localRotation=rotation; Destroy(before); Destroy(after); if(!changed) throw new Exception("Skin did not deform when bone rotated"); }
                 bool motionTest = Array.IndexOf(args, "-avaMotionSmoke") >= 0;
+                if (args.Contains("-avaProfileOutputSmoke")) CheckProfileOutput(directory);
+                if (args.Contains("-avaWorkspaceSmoke")) CheckWorkspace(directory);
+                if (args.Contains("-avaSurfaceSmoke")) CheckSurfaceOutput(directory);
+                if (args.Contains("-avaScreenHistorySmoke")) CheckScreenHistory(directory);
+                if (args.Contains("-avaGrabSmoke")) CheckGrabSequence(directory);
+                if (args.Contains("-avaExtensionSmoke")){CheckHostEditing(directory);CheckAutomaticEffects(args[input+1],directory);}
+                int commandIndex=Array.IndexOf(args,"-avaSmokeCommand");
+                if(commandIndex>=0){
+                    var command=args[commandIndex+1];
+                    if(!FindCommand(command,out var id) || !Execute(id))throw new Exception("Command failed: "+command);
+                    File.WriteAllText(Path.Combine(directory,"command.txt"),status.text);
+                }
+                if(args.Contains("-avaRigShapesSmoke"))CheckRigShapes(args[input+1]);
                 if (motionTest) CheckMotionWorkflow(directory, skin);
                 if (args.Contains("-avaMenuSmoke")) CheckMenuCompatibility(directory);
                 SetFrame(12);
@@ -119,7 +201,17 @@ namespace AvaAvaDance
                     SetBackdrop(null,null,true);viewOptions.showVideo=false;UpdateBackdrop();
                 }
             }
-            if (result.StartsWith("FAIL")) { File.WriteAllText(Path.Combine(directory,"result.txt"),result); Application.Quit(1); yield break; }
+            if (result.StartsWith("FAIL")) { SaveSmokeVerdict(directory,"player",args[input+1],result); Application.Quit(1); yield break; }
+            if(args.Contains("-avaWorkspaceLayoutSmoke")){
+                yield return CheckWorkspaceLayout(directory,error=>result=error);
+                SaveSmokeVerdict(directory,"-avaWorkspaceLayoutSmoke",args[input+1],result);
+                Application.Quit(result.StartsWith("PASS")?0:1);yield break;
+            }
+            if(args.Contains("-avaCurveSmoke")){
+                yield return CheckCurveTools(directory,error=>result=error);
+                if(result.StartsWith("PASS"))yield return CheckCurveDefaults(directory,error=>result=error);
+                if(!result.StartsWith("PASS")){SaveSmokeVerdict(directory,"-avaCurveSmoke",args[input+1],result);Application.Quit(1);yield break;}
+            }
             for(int i=0;i<20;i++) yield return null;
             yield return new WaitForEndOfFrame();
             bool captureBack = Array.IndexOf(args,"-avaSmokeBack")>=0;
@@ -144,8 +236,9 @@ namespace AvaAvaDance
                 catch (Exception ex) { result="FAIL "+ex; }
                 SetViewYaw(0);
             }
-            if(args.Contains("-avaMenuSmoke") && result.StartsWith("PASS")) {
-                OpenGroup(MmdMenu.Bar[1]);
+            if((args.Contains("-avaMenuSmoke") || args.Contains("-avaWorkspaceSmoke")) && result.StartsWith("PASS")) {
+                bool captureRibbon=args.Contains("-avaWorkspaceSmoke"),priorProfile=ribbonProfile;
+                if(captureRibbon){ApplyProfile(true);SelectRibbonTab(1);if(drawOrder.Count>1)ChooseMode(drawOrder[0].label);} else OpenGroup(MmdMenu.Bar[1]);
                 var rt=new RenderTexture(Screen.width,Screen.height,24,RenderTextureFormat.ARGB32);
                 var prior=panel.targetTexture;rt.Create();panel.targetTexture=rt;
                 try {
@@ -155,9 +248,9 @@ namespace AvaAvaDance
                     try {
                         RenderTexture.active=rt;image.ReadPixels(new Rect(0,0,rt.width,rt.height),0,0);image.Apply();
                         if(!image.GetPixels32().Any(c=>c.r>120 && c.a>240))throw new IOException("Blank menu panel.");
-                        File.WriteAllBytes(Path.Combine(directory,"mmd-menu.png"),image.EncodeToPNG());
+                        File.WriteAllBytes(Path.Combine(directory,captureRibbon?"ribbon.png":"mmd-menu.png"),image.EncodeToPNG());
                     } catch(Exception ex){result="FAIL "+ex;} finally {RenderTexture.active=previous;Destroy(image);}
-                } finally {CloseMenu();panel.targetTexture=prior;rt.Release();Destroy(rt);}
+                } finally {CloseMenu();panel.targetTexture=prior;rt.Release();Destroy(rt);if(captureRibbon)ApplyProfile(priorProfile);}
             }
             // A batch player has no screen backbuffer. Its actual camera render is captured above.
             if (!Application.isBatchMode && result.StartsWith("PASS"))
@@ -175,8 +268,62 @@ namespace AvaAvaDance
                 catch (Exception ex) { result="FAIL "+ex; }
                 finally { if(image!=null) Destroy(image); }
             }
-            File.WriteAllText(Path.Combine(directory,"result.txt"),result);
+            SaveSmokeVerdict(directory,string.Join(" ",args.Where(a=>a.StartsWith("-ava") && a.EndsWith("Smoke"))),args[input+1],result);
             Debug.Log(result); Application.Quit(result.StartsWith("PASS")?0:1);
+        }
+
+        void CheckPrefabMaterials(UnityPackageReader.PackageAsset model, UnityPackageReader.PackageAsset prefab,
+            System.Collections.Generic.List<UnityPackageReader.PackageAsset> assets, string directory)
+        {
+            if(prefab==null)throw new InvalidDataException("Expected a prefab for the material comparison.");
+            var bindings=AvatarMaterialBindings.Read(model,prefab);
+            var source=assets.ToDictionary(a=>a.Guid,StringComparer.OrdinalIgnoreCase);
+            var report=new StringBuilder();
+            int checkedSlots=0;
+            void Require(bool ok,string property){if(!ok)throw new InvalidDataException("Material mismatch: "+property);}
+            foreach(var r in actor.avatar.GetComponentsInChildren<Renderer>())
+            {
+                if(!bindings.Renderers.TryGetValue(r.name,out var slots) || slots==null)continue;
+                Require(r.enabled==slots.Visible,r.name+" visibility");
+                if(!slots.Visible)continue;
+                var mats=r.sharedMaterials;
+                Require(mats.Length==slots.Materials.Length && (int)r.shadowCastingMode==slots.CastShadows && r.receiveShadows==slots.ReceiveShadows,r.name+" renderer");
+                for(int i=0;i<mats.Length;i++)
+                {
+                    var guid=slots.Materials[i];
+                    if(guid==null){Require(mats[i]==null,r.name+" empty slot");continue;}
+                    var entry=source[guid];var data=UnityMaterialData.Parse(Encoding.UTF8.GetString(entry.Data));
+                    var mat=mats[i];var expected=shaderLibrary.ResolveMaterial(data.ShaderGuid,data.ShaderFileId,null);
+                    Require(expected!=null && mat.shader==expected && mat.name==data.Name,entry.Path+" material");
+                    Require(mat.renderQueue==(data.CustomRenderQueue<0?expected.renderQueue:data.CustomRenderQueue),entry.Path+" renderQueue");
+                    foreach(var p in data.Floats.Where(p=>mat.HasProperty(p.Key)))
+                        Require(Mathf.Approximately(mat.GetFloat(p.Key),p.Value),entry.Path+" "+p.Key);
+                    foreach(var p in data.Colors.Where(p=>mat.HasProperty(p.Key)))
+                    {
+                        var v=p.Value;
+                        Require(Vector4.Distance(mat.GetVector(p.Key),new Vector4(v.R,v.G,v.B,v.A))<.0001f,entry.Path+" "+p.Key);
+                    }
+                    foreach(var p in data.Textures.Where(p=>mat.HasProperty(p.Key)))
+                    {
+                        var v=p.Value;
+                        Require(mat.GetTextureScale(p.Key)==new Vector2(v.Scale.X,v.Scale.Y) && mat.GetTextureOffset(p.Key)==new Vector2(v.Offset.X,v.Offset.Y),entry.Path+" "+p.Key+" UV");
+                        if(v.Guid==null || !source.TryGetValue(v.Guid,out var image) || !image.Path.EndsWith(".png",StringComparison.OrdinalIgnoreCase))continue;
+                        var tex=mat.GetTexture(p.Key) as Texture2D;
+                        Require(tex!=null && tex.name==Path.GetFileNameWithoutExtension(image.Path),entry.Path+" "+p.Key+" texture");
+                    }
+                    Require(shadowDraws.Any(d=>d.renderer==r && d.slot==i && d.native),entry.Path+" shadow routing");
+                    report.AppendLine(r.name+"["+i+"] "+entry.Path+" -> "+mat.shader.name);
+                    checkedSlots++;
+                }
+            }
+            Require(checkedSlots>0 && previewLamp.shadows!=LightShadows.None,"no native shadow receivers");
+            var pose=shadowTrack.Current;var off=pose;off.Mode=0;ApplyShadow(off);
+            Require(previewLamp.shadows==LightShadows.None && actor.shadowCasters.All(r=>!r.receiveShadows),"shadow off");
+            ApplyShadow(pose);
+            foreach(var t in actor.avatar.GetComponent<FbxOwnedResources>().PackageTextures.Values)
+                report.AppendLine(t.name+" "+t.width+"x"+t.height+" mips="+t.mipmapCount+" "+t.graphicsFormat);
+            File.WriteAllText(Path.Combine(directory,"materials.txt"),report.ToString());
+            Debug.Log("AVA_PREFAB_MATERIALS_VERIFIED slots="+checkedSlots);
         }
 
         void CheckBulletSeek()
@@ -301,6 +448,14 @@ namespace AvaAvaDance
                     for(int i=0;i<actor.dynamicLinks.Count;i++)samples[f*actor.dynamicLinks.Count+i]=actor.dynamicLinks[i].TipPosition;
                 }
                 return samples;
+            }
+            if(CurrentWave!=null){
+                var originalWave=CurrentWave;bool priorProfile=ribbonProfile;ApplyProfile(true);
+                var before=undo.Count;DeletePanelSelection(waveform);
+                Check(CurrentWave==null && undo.Count==before+1,"Audio panel selection delete");
+                ApplyProfile(false);ApplyHistory(false);Check(CurrentWave==originalWave && soundtrack.clip.samples==originalWave.samples,"Audio deletion undo");
+                ApplyHistory(true);Check(soundtrack.clip==null,"Audio deletion redo");
+                ApplyHistory(false);ApplyProfile(priorProfile);
             }
             Check(actor.ikChains.Count>0,"No foot IK chain"); Check(actor.dynamicLinks.Count>0,"No dynamic chain");
             var ik=actor.ikChains.First(c=>c.Lower!=null);

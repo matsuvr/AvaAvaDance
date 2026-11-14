@@ -4,8 +4,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Xml;
-using System.Xml.Linq;
 
 namespace AvaAvaDance.Import
 {
@@ -64,42 +62,6 @@ namespace AvaAvaDance.Import
                     Lyric=note.Value("Lyric"),Phoneme=note.Optional("Phoneme").Replace(',', ' ')});
             // VoiSona uses 960 clocks per quarter note. Preserve the score's leading rests.
             return ConvertNotes(notes,tempos,960,0);
-        }
-        public static List<Note> ReadVsqx(byte[] bytes)
-        {
-            if(bytes==null || bytes.Length>MaxBytes) throw Invalid();
-            using var stream=new MemoryStream(bytes,false);
-            using var reader=XmlReader.Create(stream,new XmlReaderSettings {DtdProcessing=DtdProcessing.Prohibit,XmlResolver=null,MaxCharactersInDocument=MaxBytes});
-            var root=XDocument.Load(reader).Root;
-            bool v4=root?.Name.LocalName=="vsq4";
-            string ns=v4?"http://www.yamaha.co.jp/vocaloid/schema/vsq4/":"http://www.yamaha.co.jp/vocaloid/schema/vsq3/";
-            if(root==null || root.Name.NamespaceName!=ns || (!v4 && root.Name.LocalName!="vsq3"))throw Invalid();
-            XNamespace x=ns;
-            string Field(XElement e,string name) => e.Element(x+name)?.Value ?? throw Invalid();
-            var master=root.Element(x+"masterTrack") ?? throw Invalid();
-            int ppq=checked((int)Integer(Field(master,"resolution")));
-            long pre=Integer(Field(master,"preMeasure"));
-            string pos=v4?"t":"posTick", bpm=v4?"v":"bpm";
-            var tempos=new SortedDictionary<long,double>();
-            foreach(var t in master.Elements(x+"tempo"))tempos[Integer(Field(t,pos))]=Number(Field(t,bpm))/100.0;
-            var signature=master.Elements(x+"timeSig").FirstOrDefault(t=>Field(t,v4?"m":"posMes")=="0") ?? throw Invalid();
-            long numerator=Integer(Field(signature,v4?"nu":"nume")),denominator=Integer(Field(signature,v4?"de":"denomi"));
-            if(pre<0 || numerator<=0 || denominator<=0)throw Invalid();
-            // Avoid silently mis-timing unusual meter changes during the count-in.
-            if(master.Elements(x+"timeSig").Any(t=>{long m=Integer(Field(t,v4?"m":"posMes"));return m>0 && m<pre;}))throw new InvalidDataException("プリメジャー内の拍子変更には未対応です。");
-            long origin=checked(pre*ppq*numerator*4/denominator);
-            var notes=new List<TickNote>();
-            // Match the legacy VSQ importer: use the first vocal track containing notes.
-            foreach(var track in root.Elements(x+"vsTrack")) {
-                foreach(var part in track.Elements(x+(v4?"vsPart":"musicalPart"))) {
-                    long start=Integer(Field(part,pos));
-                    foreach(var n in part.Elements(x+"note"))
-                        notes.Add(new TickNote {Start=checked(start+Integer(Field(n,pos))),Duration=Integer(Field(n,v4?"dur":"durTick")),
-                            Lyric=Field(n,v4?"y":"lyric"),Phoneme=n.Element(x+(v4?"p":"phnms"))?.Value ?? ""});
-                }
-                if(notes.Count>0)break;
-            }
-            return ConvertNotes(notes,tempos,ppq,origin);
         }
         sealed class Node
         {

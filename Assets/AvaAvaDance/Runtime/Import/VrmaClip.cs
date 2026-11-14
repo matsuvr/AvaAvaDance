@@ -218,7 +218,7 @@ namespace AvaAvaDance.Import
             }
         }
 
-        static Matrix4x4 RestTransform(glTFNode n)
+        internal static Matrix4x4 RestTransform(glTFNode n)
         {
             if (n.matrix?.Length == 16)
                 return UniGLTF.UnityExtensions.MatrixFromArray(n.matrix).ReverseX();

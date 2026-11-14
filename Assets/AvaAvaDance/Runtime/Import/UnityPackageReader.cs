@@ -22,6 +22,7 @@ namespace AvaAvaDance.Import
         {
             public string Guid { get; private set; }
             public string Path { get; private set; }
+            internal string ContainerPath {get;set;}
             // Metadata-only folder entries have no asset payload.
             public byte[] Data { get; private set; }
             public string Meta { get; private set; }
@@ -39,7 +40,9 @@ namespace AvaAvaDance.Import
         /// <summary>Leaves the caller-owned stream open. Throws InvalidDataException on invalid input.</summary>
         public static List<PackageAsset> Read(string path)
         {
-            using (var source = File.OpenRead(path)) return Read(source);
+            using var source=File.OpenRead(path);var assets=Read(source);
+            var container=System.IO.Path.GetFullPath(path);foreach(var asset in assets)asset.ContainerPath=container;
+            return assets;
         }
 
         public static List<PackageAsset> Read(Stream source)

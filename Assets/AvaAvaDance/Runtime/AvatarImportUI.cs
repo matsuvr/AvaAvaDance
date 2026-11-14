@@ -32,7 +32,7 @@ namespace AvaAvaDance
             loadButton.clicked += PickPackage;
             removeButton = model.Query<Button>().ToList().First(b => b.text == "削除");
             removeButton.tooltip = "読み込んだ表示モデルを削除";
-            removeButton.clicked += () => { ClearAvatar(); ChangeMode(false); status.text = "モデルを削除しました。"; };
+            removeButton.clicked += RemoveCurrentAvatar;
             removeButton.SetEnabled(false);
             previewImage = new Image { pickingMode = PickingMode.Ignore, scaleMode = ScaleMode.StretchToFill };
             previewImage.style.position = Position.Absolute;
@@ -48,12 +48,12 @@ namespace AvaAvaDance
             if (importing) return;
             try
             {
-                string path = PackageFileDialog.Open("モデルを選択", "unitypackage;vrm");
+                string path = PackageFileDialog.Open("モデルを選択", "unitypackage;vrm;avaeffect");
                 if (string.IsNullOrEmpty(path)) return;
                 importing = true; loadButton.SetEnabled(false);
-                if (IsVrm(path))
+                if (IsVrm(path) || IsController(path))
                 {
-                    status.text = "VRM 読込中…";
+                    status.text = "モデル読込中…";
                     var model = await Task.Run(() => ReadVrmFile(path));
                     if (this != null) ImportModel(model, new List<UnityPackageReader.PackageAsset> { model }, null);
                     return;
@@ -75,7 +75,7 @@ namespace AvaAvaDance
                 var choices=await Task.Run(()=>PackageAvatar.Choices(assets,models));
                 if(this!=null)ShowModelSelection(assets, choices);
             }
-            catch (Exception ex) { if (this != null) status.text = "読込中止: " + ex.Message; }
+            catch (Exception ex) { if (this != null) ReportActionError("読込中止: ", ex); }
             finally { importing = false; if (loadButton != null) loadButton.SetEnabled(true); }
         }
 
@@ -102,7 +102,7 @@ namespace AvaAvaDance
                     ImportModel(selected.Model, assets, selected.Prefab);
                     importDialog.RemoveFromHierarchy(); importDialog = null;
                 }
-                catch (Exception ex) { status.text = "FBX 読込失敗: " + ex.Message; }
+                catch (Exception ex) { ReportActionError("FBX 読込失敗: ", ex); }
             }) { text = "読み込む" }; load.SetEnabled(false); row.Add(load);
             consent.RegisterValueChangedCallback(e => load.SetEnabled(e.newValue));
             row.Add(new Button(() => { importDialog.RemoveFromHierarchy(); importDialog = null; status.text = "読込をキャンセルしました。"; }) { text = "キャンセル" });
@@ -114,35 +114,51 @@ namespace AvaAvaDance
             if(drawOrder.Count>=255)throw new InvalidDataException("モデルは255体までです。");
             var previousActor=actor;
             string name = Path.GetFileNameWithoutExtension(model.Path);
-            var vrm = IsVrm(model.Path) ? LoadVrm(model.Data) : null;
-            var candidate = vrm != null ? vrm.gameObject : FbxNative.Load(model.Data, name);
+            var missing = new List<MissingMaterialShader>();
+            var vrm = IsVrm(model.Path) ? LoadVrm(model.Data,missing) : null;
+            var descriptor=IsController(model.Path)?Controller(model.Data):null;
+            var controlJoints=new List<Transform>();
+            var candidate = descriptor!=null?BuildController(descriptor,name,out controlJoints):vrm != null ? vrm.gameObject : FbxNative.Load(model.Data, name);
             candidate.name = name;
             var resources = new List<UnityEngine.Object>();
             try
             {
                 var physBones = PrefabPhysBones.Read(prefab, candidate);
                 var human = MapHumanBones(candidate, vrm, model.Meta);
-                var bindPose = human.Values.Distinct().ToDictionary(t => t, t => new BoneInitialRotation(t));
+                var rawRig=RigFiles.FromHierarchy(candidate,human);
+                rawRig.sourceId=prefab==null?model.Guid:prefab.Guid+"/"+model.Guid;
+                rawRig.shapes=vrm!=null?RigFiles.SpringShapes(candidate):physBones.Shapes.ToArray();
+                RigMeasurements.FromScene(candidate,rawRig);
+                using(var hash=System.Security.Cryptography.SHA256.Create())rawRig.sourceHash=Convert.ToBase64String(hash.ComputeHash(model.Data));
+                var bindPose = human.Values.Distinct().ToDictionary(t => t, t => new HumanoidBindRotation(t));
                 var bindPositions = bindPose.Keys.ToDictionary(t => t, t => candidate.transform.InverseTransformPoint(t.position));
                 var facing = Vector3.forward;
                 int textures = 0;
-                if (vrm == null)
+                if (vrm == null && descriptor==null)
                 {
                     HumanoidPreview.TryPose(candidate, model.Meta, out facing);
-                    textures = ApplyPackageMaterials(candidate, resources, model, assets, prefab);
+                    textures = ApplyPackageMaterials(candidate, resources, model, assets, prefab, missing);
                 }
+                rawRig.editRest=RigMeasurements.EditRest(rawRig,RigFiles.FromHierarchy(candidate,human).joints);
                 EnsurePreview();
                 foreach (var t in candidate.GetComponentsInChildren<Transform>()) t.gameObject.layer = 30;
                 var renderers = candidate.GetComponentsInChildren<Renderer>().Where(r => r.enabled).ToArray();
-                if (renderers.Length == 0) throw new InvalidDataException("表示可能なメッシュがありません。");
-                var bounds = renderers[0].bounds;
-                foreach (var renderer in renderers.Skip(1)) bounds.Encapsulate(renderer.bounds);
-                float size = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
-                if (!float.IsFinite(size) || size < 0.00001f) throw new InvalidDataException("不正なモデル寸法です。");
-                candidate.transform.localScale *= 2f / size;
-                candidate.transform.position -= bounds.center * (2f / size);
-                BeginActor(candidate);
+                if(descriptor==null)
+                {
+                    if (renderers.Length == 0) throw new InvalidDataException("表示可能なメッシュがありません。");
+                    var bounds = renderers[0].bounds;
+                    foreach (var renderer in renderers.Skip(1)) bounds.Encapsulate(renderer.bounds);
+                    float size = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
+                    if (!float.IsFinite(size) || size < 0.00001f) throw new InvalidDataException("不正なモデル寸法です。");
+                    candidate.transform.localScale *= 2f / size;
+                    candidate.transform.position -= bounds.center * (2f / size);
+                }
+                else if(descriptor.coordinateSpace=="motion"){
+                    candidate.transform.SetPositionAndRotation(propFloor,Quaternion.Euler(0,180,0));
+                }
+                BeginActor(candidate);actor.controller=descriptor;actor.rigProfile=rawRig;
                 actor.vrm = vrm;
+                actor.missingShaders = missing;
                 actor.humanBones = human;
                 actor.bindPose = bindPose;
                 actor.bindPositions = bindPositions;
@@ -158,19 +174,27 @@ namespace AvaAvaDance
                 useCameraView = false;
                 var dynamics = BuildPhysBoneLinks(physBones);
                 var stretchChildren=dynamics.Values.Where(d=>d.MaxStretch>0 || d.MaxSquish>0).SelectMany(d=>d.Children);
-                var joints = dynamics.Keys.Concat(stretchChildren);
+                var joints = dynamics.Keys.Concat(stretchChildren).Concat(controlJoints).Concat(human.Values);
                 if (vrm != null)
                 {
                     actor.gaze = new GameObject("両目").transform;
                     actor.gaze.SetParent(human[HumanBodyBones.Head], false);
-                    joints = joints.Concat(human.Values).Append(actor.gaze);
+                    joints = joints.Append(actor.gaze);
                 }
-                BindBones(joints); BindMorphs(); BindRig(model.Meta, dynamics);
-                actor.shadowCasters = renderers; ApplyDrawOrder(); BindShadowRenderers(); ApplyModelDisplay(); ApplyShadow(shadowTrack.Current);
+                BindBones(joints); BindLogicalRig(); BindMorphs();
+                if(descriptor!=null)foreach(var m in descriptor.morphs)AddMorph(m.name,_=>{},m.value);
+                BindRig(model.Meta, dynamics);
+                rawRig.morphs=actor.modelTracks.OfType<MotionTrack<float>>().Select(MorphName).ToArray();
+                if(descriptor!=null)RefreshActorUI();
+                actor.shadowCasters = renderers;
+                foreach (var r in renderers) if (r.receiveShadows) actor.sourceShadowReceivers.Add(r);
+                ApplyDrawOrder(); BindShadowRenderers(); ApplyModelDisplay();
                 RememberModel(model,assets,prefab);
+                RefreshMissingShaderButton();
                 viewportNote.EnableInClassList("hidden", true);
                 removeButton.SetEnabled(true);
                 ChangeMode(true);
+                if(descriptor!=null){status.text=model.Path+" / 制御ボーン "+descriptor.bones.Length+" / モーフ "+descriptor.morphs.Length;return;}
                 if (vrm != null)
                 {
                     status.text = model.Path + " / " + human.Count + " ヒューマノイドボーン";
@@ -225,7 +249,12 @@ namespace AvaAvaDance
             previewTexture = new RenderTexture(desc); previewTexture.Create();
             previewCamera.targetTexture=previewTexture; previewImage.image=previewTexture;
         }
-        private void ClearAvatar()
+        void RemoveCurrentAvatar()
+        {
+            if(actor.avatar==null)return;
+            ClearAvatar();ChangeMode(false);status.text="モデルを削除しました。";
+        }
+        private void ClearAvatar(bool refresh = true)
         {
             StopPlayback();
             ReleaseBones(); ClearRig(); actor.modelAssets.Clear(); actor.modelGuid=null; actor.prefabGuid=null;
@@ -237,12 +266,19 @@ namespace AvaAvaDance
             removeButton?.SetEnabled(false);
             foreach (var resource in actor.importedResources) if (resource != null) Destroy(resource);
             actor.importedResources.Clear();
-            drawOrder.Remove(actor);calculationOrder.Remove(actor);actor=drawOrder.LastOrDefault()??new Actor();
-            if(actor.avatar!=null)RefreshActorUI(); BindShadowRenderers();
+            externalParents.RemoveAll(l=>l.owner==actor.id || l.parentOwner==actor.id);
+            sourceRevision++;drawOrder.Remove(actor);calculationOrder.Remove(actor);actor=drawOrder.LastOrDefault()??new Actor();
+            if (refresh)
+            {
+                if (actor.avatar != null) RefreshActorUI();
+                BindShadowRenderers();
+                RefreshMissingShaderButton();
+            }
         }
         private void DisposePreview()
         {
-            ClearAllActors();
+            shaderDownloadCancellation?.Cancel();
+            ClearAllActors(refresh: false);
             DisposeShadowRendering();
             if (shadowFloor!=null) Destroy(shadowFloor.GetComponent<MeshFilter>().sharedMesh);
             if (groundMaterial != null) Destroy(groundMaterial);

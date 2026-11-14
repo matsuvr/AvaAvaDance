@@ -1,5 +1,6 @@
 """Exercise the shipped Windows x64 Bullet DLL with gravity, contact filters and joints."""
 import ctypes as c
+import math
 from pathlib import Path
 
 dll = c.CDLL(str(Path(__file__).resolve().parents[1] / "Assets/Plugins/x86_64/AvaBullet.dll"))
@@ -28,6 +29,7 @@ body = function("body", c.c_int, world_type, c.POINTER(Body))
 step = function("step", None, world_type, c.POINTER(Vec))
 read = function("read", None, world_type, c.c_int, c.POINTER(Pose))
 drive = function("drive", None, world_type, c.c_int, c.c_int, c.POINTER(Pose))
+transport = function("transport", None, world_type, c.c_int, c.c_int, c.POINTER(Pose))
 joint = function("joint", c.c_int, world_type, c.c_int, c.c_int, c.POINTER(Pose), c.POINTER(Vec), c.c_float, c.c_float)
 allow = function("allow", c.c_int, world_type, c.c_int, c.c_int)
 
@@ -84,4 +86,29 @@ for _ in range(3):
         assert y(w,sphere) < 1
     finally:
         destroy(w)
-print("PASS Bullet 3.25: gravity, sphere/box/capsule floor contacts, masks, attachment, collider allowlist, keyed follow/release")
+# Full PhysBone immobility should carry a segment at rest through a moving and
+# rotating reference frame without the kinematic anchor kicking the segment.
+w = create()
+try:
+    anchor = add(w, 0, 2, 1, Vec(.01,0,0), 0, 0, 0)
+    tip = add(w, 0, 2, 0, Vec(.05,0,0), 1, 2, 0)
+    assert joint(w, anchor, tip, c.byref(pose(2,1)), c.byref(Vec(.4,0,.4)), 2, 1.5)
+    angle = math.radians(4)
+    for i in range(1, 91):
+        x = 2 + (i-1)*.02
+        dx = x+.02 - (x*math.cos(angle)-math.sin(angle))
+        dy = 1 - (x*math.sin(angle)+math.cos(angle))
+        delta = Pose(Vec(dx,dy,0), 0,0,math.sin(angle/2),math.cos(angle/2))
+        transport(w, tip, anchor, c.byref(delta))
+        turn = i*angle
+        target = Pose(Vec(x+.02,1,0), 0,0,math.sin(turn/2),math.cos(turn/2))
+        drive(w, anchor, 1, c.byref(target))
+        step(w, c.byref(Vec(0,0,0)))
+        result = Pose()
+        read(w, tip, c.byref(result))
+        assert abs(result.position.x - (target.position.x+math.sin(turn))) < .001
+        assert abs(result.position.y - (1-math.cos(turn))) < .001
+        assert abs(result.z*target.z+result.w*target.w) > .9999
+finally:
+    destroy(w)
+print("PASS Bullet 3.25: contacts, joints, keyed follow/release and moving PhysBone reference")

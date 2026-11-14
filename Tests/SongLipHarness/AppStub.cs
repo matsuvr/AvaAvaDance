@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 namespace UnityEngine {static class Mathf {public static int RoundToInt(float n)=>(int)Math.Round(n);}}
+namespace Ava.Extensions {static class MmdText {public static string Decode(byte[] b)=>Encoding.UTF8.GetString(b);}}
 namespace AvaAvaDance {
     class MotionTrack {public string Name;}
     static class MmdText {public static string Decode(byte[] b)=>Encoding.UTF8.GetString(b);}
@@ -21,10 +22,10 @@ namespace AvaAvaDance {
         void CommitKeys(IEnumerable<KeyChange> changes) {foreach(var c in changes)keys[c.Frame]=(float)c.After;commits++;}
         public static void TestImport(string path) {
             var app=new DanceApp {frame=10}; app.morphGroups[1].Tracks.Add(new MotionTrack{Name="お"});
-            app.ImportSongLipSync(path);
+            app.ImportLipSync(path);
             if(app.commits!=1 || app.keys[58]!=1 || app.keys[106]!=0)throw new Exception("TSSPRJ application frame offset/commit");
             var bad=new DanceApp {frame=599999};bad.morphGroups[1].Tracks.Add(new MotionTrack{Name="お"});
-            try {bad.ImportSongLipSync(path);throw new Exception("frame overflow accepted");}catch(InvalidDataException){}
+            try {bad.ImportLipSync(path);throw new Exception("frame overflow accepted");}catch(InvalidDataException){}
             if(bad.commits!=0)throw new Exception("partial mutation on error");
         }
     }

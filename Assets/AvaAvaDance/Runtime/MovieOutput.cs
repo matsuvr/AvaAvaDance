@@ -70,7 +70,7 @@ namespace AvaAvaDance
                     movie=config; StartCoroutine(ExportMovie(path,config));
                 });
                 Action(row,"キャンセル",true,CloseDialog);
-            } catch(Exception ex) { status.text=(avi?"AVI":"MP4")+"出力中止　"+ex.Message; }
+            } catch(Exception ex) { ReportActionError((avi?"AVI":"MP4")+"出力中止　",ex); }
         }
 
         bool MovieRange(MovieSettings s,out int first,out int last)
@@ -132,10 +132,11 @@ namespace AvaAvaDance
             if(!MovieRange(config,out int first,out int last)) throw new ArgumentException("録画設定が不正です。");
             bool isAvi=path.EndsWith(".avi",StringComparison.OrdinalIgnoreCase);
             string format=isAvi?"AVI":"MP4";
-            ShowDialog(format+"出力",out var body);
+            ShowDialog(format+"出力",out var body,true);
             var progress=new Label(); body.Add(progress); cancelExport=false;
             Action(body,"キャンセル",true,()=>cancelExport=true);
-            exporting=true; movieError=null;
+            var priorClock=(previousClock,previousSample,renderSeconds,renderDelta,syncedSeconds,syncedDelta,outputDelta);
+            movieHistory.Dispose();exporting=true; movieError=null;
             int count=(int)Math.Ceiling((last-first+1)*config.fps/30.0);
             string temp=Path.Combine(Path.GetDirectoryName(Path.GetFullPath(path)),Guid.NewGuid()+Path.GetExtension(path));
             var tracks=sceneTracks.Concat(drawOrder.SelectMany(a=>a.modelTracks)).ToArray();
@@ -159,6 +160,7 @@ namespace AvaAvaDance
                     if(isAvi)avi=new AviWriter(temp,config.width,config.height,config.fps,count,source!=null);
                     else CheckEncoder(ava_movie_open(temp,config.width,config.height,config.fps,bitrate,source!=null?1:0,out writer));
                 } catch(Exception ex) { movieError=ex.Message; }
+                outputDelta=1f/config.fps;
                 for(int i=0;i<count && movieError==null && !cancelExport;i++) {
                     try { EvaluateAnimation(first+i*30f/config.fps,true); }
                     catch(Exception ex) { movieError=ex.Message; break; }
@@ -193,7 +195,9 @@ namespace AvaAvaDance
                 if(File.Exists(temp))File.Delete(temp);
                 previewCamera.targetTexture=oldTexture; previewCamera.aspect=oldAspect;
                 if(rt!=null){rt.Release();Destroy(rt);} if(image!=null)Destroy(image);
-                floor.SetActive(oldGrid); exporting=false; ResizePreview(); ForEachActor(calculationOrder,InvalidateDynamics);
+                floor.SetActive(oldGrid); exporting=false;movieHistory.Dispose();UpdateScreenMaterials();
+                (previousClock,previousSample,renderSeconds,renderDelta,syncedSeconds,syncedDelta,outputDelta)=priorClock;
+                ResizePreview(); ForEachActor(calculationOrder,InvalidateDynamics);
                 Seek(frame);
                 for(int i=0;i<tracks.Length;i++)tracks[i].Restore(drafts[i]);
                 RefreshRigPreview(); RestoreSolvedPose(); ApplyView(); SyncControls(); CloseDialog();

@@ -163,6 +163,8 @@ namespace AvaAvaDance
         // Used by the standalone front/back render check.
         void SetViewYaw(float yaw) => SetViewAngles(0, yaw);
 
+        float BonePositionUnit => ribbonProfile ? 1f : SceneUnit;
+
         void EditTransform(int axis, float value)
         {
             StopPlayback();
@@ -172,7 +174,7 @@ namespace AvaAvaDance
             {
                 if (actor.selectedBone == null) return;
                 var pose = actor.selectedBone.Track.Current;
-                if (axis < 3) pose.Position[axis] = value;
+                if (axis < 3) pose.Position[axis] = value * BonePositionUnit;
                 else if (axis < 6) { var angles = SignedAngles(pose.Rotation); angles[axis-3] = value; pose.Rotation = Quaternion.Euler(angles); }
                 PreviewBone(pose);
             }
@@ -193,7 +195,7 @@ namespace AvaAvaDance
             var lamp = lightTrack.Current;
             positionLabel.text = modelMode ? "ボーン位置" : "カメラ中心";
             var pose = actor.selectedBone?.Track.Current ?? BonePose.Rest;
-            Vector3 xyz = modelMode ? pose.Position : cam.Center;
+            Vector3 xyz = modelMode ? pose.Position / BonePositionUnit : cam.Center;
             Vector3 angles = modelMode ? SignedAngles(pose.Rotation) : cam.Angles;
             for (int i = 0; i < 7; i++)
             {

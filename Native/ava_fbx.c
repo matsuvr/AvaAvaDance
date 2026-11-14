@@ -9,12 +9,16 @@ static ufbx_progress_result progress(void *user,const ufbx_progress *p) { return
 static ufbx_node *node(ufbx_scene *s, int n) { return s && n>=0 && (size_t)n<s->nodes.count ? s->nodes.data[n] : NULL; }
 static ufbx_mesh *mesh(ufbx_scene *s,int n) { ufbx_node *p=node(s,n); return p?p->mesh:NULL; }
 static ufbx_skin_deformer *skin(ufbx_mesh *m) { return m&&m->skin_deformers.count?m->skin_deformers.data[0]:NULL; }
-API void *ava_load(const void *data, int size, char *error, int capacity) {
+static ufbx_scene *load_scene(const void *data, int size, char *error, int capacity, bool motion) {
  if(!data||size<=0||size>268435456) return NULL;
  ufbx_load_opts o={0}; ufbx_error e; clock_t started=clock(); o.progress_cb.fn=progress; o.progress_cb.user=&started; o.progress_interval_hint=65536;
  o.temp_allocator.memory_limit=536870912; o.result_allocator.memory_limit=536870912;
  o.temp_allocator.allocation_limit=1000000; o.result_allocator.allocation_limit=1000000;
- o.load_external_files=false; o.ignore_animation=true; o.ignore_embedded=true;
+ o.load_external_files=false; o.ignore_animation=!motion; o.ignore_geometry=motion; o.ignore_embedded=true;
+ if (motion) {
+  o.space_conversion=UFBX_SPACE_CONVERSION_MODIFY_GEOMETRY;
+  o.handedness_conversion_axis=UFBX_MIRROR_AXIS_X;
+ }
  o.file_format=UFBX_FILE_FORMAT_FBX;
  o.target_axes=ufbx_axes_left_handed_y_up; o.target_unit_meters=1.0;
  o.geometry_transform_handling=UFBX_GEOMETRY_TRANSFORM_HANDLING_HELPER_NODES;
@@ -34,6 +38,31 @@ API void *ava_load(const void *data, int size, char *error, int capacity) {
   if(total>LIMIT_VERTS || n->materials.count>256){ufbx_free_scene(s);return NULL;}
  }
  return s;
+}
+API void *ava_load(const void *data, int size, char *error, int capacity) {
+ return load_scene(data,size,error,capacity,false);
+}
+API void *ava_load_motion(const void *data, int size, char *error, int capacity) {
+ return load_scene(data,size,error,capacity,true);
+}
+API int ava_take_range(ufbx_scene *s,double *begin,double *end) {
+ if (!s || !s->anim_stacks.count || !s->anim_curves.count) return 0;
+ const ufbx_anim_stack *take=s->anim_stacks.data[0];
+ *begin=take->time_begin; *end=take->time_end;
+ return 1;
+}
+// Sample the whole hierarchy together, including animation on non-humanoid parents.
+API int ava_motion_pose(ufbx_scene *s,double time,bool rest,float *out,int count) {
+ if (!s || !s->anim_stacks.count || (size_t)count!=s->nodes.count) return 0;
+ const ufbx_anim *anim=s->anim_stacks.data[0]->anim;
+ for (int i=0;i<count;i++) {
+  const ufbx_node *n=s->nodes.data[i];
+  ufbx_transform t=rest ? n->local_transform : ufbx_evaluate_transform(anim,n,time);
+  float *v=out+10*i;
+  for (int k=0;k<3;k++) { v[k]=(float)t.translation.v[k]; v[7+k]=(float)t.scale.v[k]; }
+  for (int k=0;k<4;k++) v[3+k]=(float)t.rotation.v[k];
+ }
+ return 1;
 }
 API void ava_free(ufbx_scene *s) { ufbx_free_scene(s); }
 API int ava_nodes(ufbx_scene *s) { return s?(int)s->nodes.count:0; }

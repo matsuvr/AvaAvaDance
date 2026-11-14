@@ -1,3 +1,4 @@
+using MmdText = Ava.Extensions.MmdText;
 using System;
 using System.IO;
 using System.Linq;
@@ -18,6 +19,63 @@ namespace AvaAvaDance
             w.Write(new byte[]{0,0,(byte)(size>>8),(byte)size,0,255,81,3,7,161,32,0,255,1});
             w.Write(len);w.Write(text);w.Write(new byte[]{0,255,47,0});return s.ToArray();
         }
+
+        void CheckVsqxLipSync(string dir)
+        {
+            void Check(bool ok, string what) { if (!ok) throw new InvalidOperationException("VSQX: " + what); }
+            var lips = morphGroups[1].Tracks;
+            var tracks = new[] { "あ", "IH", "vrc.v_ou", "ee", "o" }
+                .Select(name => new MotionTrack<float>("表情：" + name, 0, Mathf.Lerp, _ => {})).ToArray();
+            lips.InsertRange(0, tracks); actor.modelTracks.AddRange(tracks);
+            try
+            {
+                foreach (bool v3 in new[] { true, false })
+                {
+                    string root = v3 ? "vsq3" : "vsq4", pos = v3 ? "posTick" : "t", dur = v3 ? "durTick" : "dur";
+                    string part = v3 ? "musicalPart" : "vsPart", lyric = v3 ? "lyric" : "y", phones = v3 ? "phnms" : "p";
+                    string Note(int t, int length, string y, string p) => $"<note><{pos}>{t}</{pos}><{dur}>{length}</{dur}><{lyric}>{y}</{lyric}><{phones}>{p}</{phones}></note>";
+                    string Part(int t, string notes) => $"<{part}><{pos}>{t}</{pos}><playTime>1440</playTime>{notes}</{part}>";
+                    string xml = $"<{root} xmlns=\"http://www.yamaha.co.jp/vocaloid/schema/{root}/\"><masterTrack><resolution>480</resolution><preMeasure>1</preMeasure>" +
+                        (v3 ? "<timeSig><posMes>0</posMes><nume>3</nume><denomi>4</denomi></timeSig>" : "<timeSig><m>0</m><nu>3</nu><de>4</de></timeSig>") +
+                        $"<tempo><{pos}>0</{pos}><{(v3 ? "bpm" : "v")}>12000</{(v3 ? "bpm" : "v")}></tempo>" +
+                        $"<tempo><{pos}>1920</{pos}><{(v3 ? "bpm" : "v")}>6000</{(v3 ? "bpm" : "v")}></tempo></masterTrack><vsTrack>" +
+                        Part(1680, Note(0, 480, "か", "k a") + Note(480, 480, "い", "i")) +
+                        Part(2880, Note(0, 240, "う", "M") + Note(240, 240, "え", "") + Note(480, 240, "お", "o")) + $"</vsTrack></{root}>";
+                    string path = Path.Combine(dir, root + ".VSQX"); File.WriteAllText(path, xml);
+                    SetFrame(60); int history = undo.Count;
+                    Import.PackageFileDialog.AutomationChooser = (title, extensions, saving) => {
+                        Check(extensions == "vsq;vsqx" && !saving, "open filter"); return path;
+                    };
+                    try { Check(Execute(Command.LipSync), "menu command"); }
+                    finally { Import.PackageFileDialog.AutomationChooser = null; }
+                    int[] begins = { 68, 90, 135, 150, 165 }, ends = { 90, 120, 150, 165, 180 };
+                    for (int i = 0; i < tracks.Length; i++)
+                        Check(Equals(tracks[i].KeyAt(begins[i]), 1f) && Equals(tracks[i].KeyAt(ends[i]), 0f),
+                            root + " timing/vowel " + i);
+                    Check(undo.Count == history + 1, "single undo transaction");
+                    ApplyHistory(false); Check(tracks[0].KeyAt(68) == null, "undo");
+                    ApplyHistory(true); Check(Equals(tracks[0].KeyAt(68), 1f), "redo");
+                    int before = undo.Count, keys = tracks.Sum(t => t.Frames.Count());
+                    File.WriteAllText(path, xml.Replace(v3 ? "<durTick>480</durTick>" : "<dur>480</dur>", v3 ? "<durTick>0</durTick>" : "<dur>0</dur>"));
+                    try { ImportLipSync(path); throw new Exception("Accepted malformed VSQX"); }
+                    catch (InvalidDataException) {}
+                    Check(undo.Count == before && tracks.Sum(t => t.Frames.Count()) == keys, "invalid file is atomic");
+                    File.WriteAllText(path, xml); SetFrame(MaxFrame);
+                    try { ImportLipSync(path); throw new Exception("Accepted out-of-range VSQX"); }
+                    catch (InvalidDataException) {}
+                    Check(undo.Count == before && tracks.Sum(t => t.Frames.Count()) == keys, "frame limit is atomic");
+                    ApplyHistory(false);
+                }
+                Debug.Log("AVA_VSQX_LIP_SYNC PASS V3/V4 menu/filter, vowels, tempo, premeasure, parts, offset, undo/redo and atomic errors");
+            }
+            finally
+            {
+                Import.PackageFileDialog.AutomationChooser = null;
+                foreach (var track in tracks) { lips.Remove(track); actor.modelTracks.Remove(track); }
+                DiscardHistory(undo, t => tracks.Contains(t)); DiscardHistory(redo, t => tracks.Contains(t));
+                SetFrame(0);
+            }
+        }
         void CheckMenuCompatibility(string dir)
         {
             void Check(bool ok,string what) {if(!ok)throw new InvalidOperationException("MMD: "+what);}
@@ -27,7 +85,18 @@ namespace AvaAvaDance
                 using var e=KeyDownEvent.GetPooled(raw); e.target=destination; destination.SendEvent(e);
             }
             bool lang=englishMenus; if(lang)SwitchLanguage();
-            Check(MmdMenu.Bar.Length==7 && menuButtons.Count==7,"menu count");
+            string motionFilter=null;
+            var chooser=Import.PackageFileDialog.AutomationChooser;
+            try {
+                Import.PackageFileDialog.AutomationChooser=(title,extensions,saving)=>{motionFilter=extensions;return null;};
+                Execute(Command.LoadMotion);
+            } finally {Import.PackageFileDialog.AutomationChooser=chooser;}
+            Check(motionFilter!=null && !motionFilter.Split(';').Contains("vmd") && motionFilter.Split(';').Contains("vrma"),"public motion formats");
+            try {ImportMotionFile(Path.Combine(dir,"reference.vmd"));throw new InvalidOperationException("Public VMD import");}
+            catch(InvalidDataException) {}
+            if(!Application.isEditor && !Debug.isDebugBuild)
+                Check(!FindCommand("ava.vmd-sizing.open",out _) && packages.All(p=>!p.manifest.developmentOnly),"internal reference tools hidden");
+            Check(MmdMenu.Bar.Length==7 && menuButtons.Count==combinedMenus.Length,"menu count");
             foreach(var group in MmdMenu.Bar) {
                 Key((KeyCode)group.Access(false),EventModifiers.Alt);
                 Check(menuGroup==group,"Alt+"+group.Access(false));Key(KeyCode.Escape);
@@ -40,7 +109,7 @@ namespace AvaAvaDance
             Key(KeyCode.B,EventModifiers.Alt); Key(KeyCode.D); Check(viewOptions.black,"background mnemonic");
             Key(KeyCode.B);Check(!viewOptions.black,"B");
             if(Application.isBatchMode) {
-                Execute(Command.SeparateWindow);Check(detached.Active,"preview window opens");detached.Draw(previewTexture);
+                Execute(Command.SeparateWindow);Check(detached.Active,"preview window opens");
                 Execute(Command.Topmost);Check(previewTop,"topmost");Execute(Command.Topmost);
                 Execute(Command.SeparateWindow);Check(!detached.Active,"preview closes");
             }
@@ -58,9 +127,10 @@ namespace AvaAvaDance
             // Exercise a VSQ text track with note lyrics, plus tempo meta data.
             var lips=morphGroups[1].Tracks;
             var testLip=new MotionTrack<float>("表情：あ",0,Mathf.Lerp,_=>{});lips.Add(testLip);actor.modelTracks.Add(testLip);
-            var vsq=Path.Combine(dir,"lip.vsq");File.WriteAllBytes(vsq,VsqFixture());SetFrame(0);ImportSongLipSync(vsq);
+            var vsq=Path.Combine(dir,"lip.vsq");File.WriteAllBytes(vsq,VsqFixture());SetFrame(0);ImportVsq(vsq);
             Check(Equals(testLip.KeyAt(0),1f) && Equals(testLip.KeyAt(15),0f),"VSQ lyric timing");
             lips.Remove(testLip);actor.modelTracks.Remove(testLip);DiscardHistory(undo,t=>t==testLip);DiscardHistory(redo,t=>t==testLip);
+            CheckVsqxLipSync(dir);
             var pose=actor.bones[0].Track.Current;pose.Rotation=Quaternion.Euler(12,15,18);pose.Position=new Vector3(.1f,.2f,.3f);pose.PhysicsOff=true;
             actor.bones[0].Track.Preview(pose);SaveVpd(vpd);actor.bones[0].Track.Preview(BonePose.Rest);LoadVpd(vpd);
             Check(Quaternion.Angle(actor.bones[0].Track.Current.Rotation,pose.Rotation)<.1f && Vector3.Distance(actor.bones[0].Track.Current.Position,pose.Position)<.0001f,"VPD");

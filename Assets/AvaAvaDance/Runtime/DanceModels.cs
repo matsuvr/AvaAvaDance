@@ -9,19 +9,47 @@ namespace AvaAvaDance
 {
     public sealed partial class DanceApp
     {
+        readonly struct HumanoidBindRotation
+        {
+            internal readonly Quaternion Local, WorldBasis;
+
+            internal HumanoidBindRotation(Transform joint)
+            {
+                Local=joint.localRotation;
+                WorldBasis=RotationBasis(joint);
+            }
+
+            // Rotation axes are axial vectors. For a reflected FBX bind frame O,
+            // -O is a proper rotation and has the same conjugation on rotations.
+            internal static Quaternion RotationBasis(Transform joint)
+            {
+                // localRotation acts before the joint's own scale in Unity's TRS.
+                if (joint.parent==null) return joint.localRotation;
+                var matrix=joint.parent.localToWorldMatrix*Matrix4x4.Rotate(joint.localRotation);
+                float sign=matrix.determinant<0 ? -1f : 1f;
+                return Quaternion.LookRotation(sign*(Vector3)matrix.GetColumn(2),sign*(Vector3)matrix.GetColumn(1));
+            }
+        }
+
         sealed class Actor
         {
+            internal Ava.Extensions.RigProfile rigProfile;
+            internal EffectController controller;
+            internal BoneBinding logicalPelvis;
+            internal readonly List<MotionTrack<BonePose>> logicalControls=new List<MotionTrack<BonePose>>(),pelvisControls=new List<MotionTrack<BonePose>>();
+            internal VmdSidecar vmdSidecar=new VmdSidecar();
             internal string id = Guid.NewGuid().ToString("N"), label;
             internal GameObject avatar;
             internal UniVRM10.Vrm10Instance vrm;
             internal Transform gaze;
             internal Dictionary<HumanBodyBones, Transform> humanBones;
-            internal Dictionary<Transform, UniVRM10.BoneInitialRotation> bindPose;
+            internal Dictionary<Transform, HumanoidBindRotation> bindPose;
             internal Dictionary<Transform, Vector3> bindPositions;
             internal Quaternion humanForward;
             internal Matrix4x4 hipsParentInverse;
             internal float hipsHeight;
             internal List<UnityEngine.Object> importedResources = new List<UnityEngine.Object>();
+            internal List<Import.MissingMaterialShader> missingShaders = new();
             internal List<Asset> modelAssets = new List<Asset>();
             internal string modelGuid;
             internal string prefabGuid;
@@ -41,6 +69,7 @@ namespace AvaAvaDance
             internal int idleTick;
             internal float idleRemainder;
             internal Renderer[] shadowCasters = Array.Empty<Renderer>();
+            internal readonly HashSet<Renderer> sourceShadowReceivers = new();
             internal bool modelSelfShadow = true;
             internal ModelOverrides modelOverrides = new ModelOverrides();
             internal Dictionary<ToonSetting,Texture2D> toonImages = new Dictionary<ToonSetting,Texture2D>();
@@ -111,10 +140,16 @@ namespace AvaAvaDance
             }
             Action(body,"上へ",true,()=>Move(-1));Action(body,"下へ",true,()=>Move(1));Action(body,"閉じる",true,()=>{CloseDialog();ChangeMode(modelMode);});
         }
-        void ClearAllActors()
+        void ClearAllActors(bool refresh = true)
         {
-            foreach(var item in drawOrder.ToArray()){actor=item;ClearAvatar();}
-            actor=new Actor();RefreshActorUI();
+            foreach(var item in drawOrder.ToArray()){actor=item;ClearAvatar(refresh: false);}
+            actor=new Actor();
+            if (refresh)
+            {
+                RefreshActorUI();
+                BindShadowRenderers();
+                RefreshMissingShaderButton();
+            }
         }
     }
 }

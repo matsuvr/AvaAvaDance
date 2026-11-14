@@ -27,7 +27,7 @@ namespace AvaAvaDance
             Bind(Command.DrawOrder,()=>ModelOrder(true),()=>drawOrder.Count>0);
             Bind(Command.CalculationOrder,()=>ModelOrder(false),()=>drawOrder.Count>0);
             Bind(Command.ModelNames,EditModelNames,()=>modelMode);
-            Bind(Command.ReloadTextures,ReloadTextures,()=>actor.avatar!=null && actor.vrm==null);
+            Bind(Command.ReloadTextures,ReloadTextures,()=>actor.avatar!=null && actor.vrm==null && actor.controller==null);
             Bind(Command.ToonTexture,EditToonTexture,()=>modelMode && actor.shadowCasters.Length>0);
             Bind(Command.EditPhysics,EditModelPhysics,ModelBones);
         }
@@ -88,14 +88,14 @@ namespace AvaAvaDance
             RestoreModelDisplay();var resources=new List<UnityEngine.Object>();
             try {
                 var model=actor.modelAssets.First(a=>a.Guid==actor.modelGuid);var prefab=actor.modelAssets.Find(a=>a.Guid==actor.prefabGuid);
-                int count=ApplyPackageMaterials(actor.avatar,resources,model,actor.modelAssets,prefab);
+                int count=ApplyPackageMaterials(actor.avatar,resources,model,actor.modelAssets,prefab,actor.missingShaders);
                 var live=actor.shadowCasters.SelectMany(r=>r.sharedMaterials).Where(m=>m!=null)
                     .SelectMany(m=>m.GetTexturePropertyNames().Select(m.GetTexture)).ToHashSet();
                 foreach(var old in actor.importedResources.OfType<Texture2D>().Where(t=>!live.Contains(t)).ToArray()) {
                     actor.importedResources.Remove(old);Destroy(old);
                 }
                 status.text=count+" 枚のテクスチャを再読込";
-            } finally {actor.importedResources.AddRange(resources);BindShadowRenderers();ApplyModelDisplay();}
+            } finally {actor.importedResources.AddRange(resources);BindShadowRenderers();ApplyModelDisplay();RefreshMissingShaderButton();}
         }
 
         void EditModelPhysics()

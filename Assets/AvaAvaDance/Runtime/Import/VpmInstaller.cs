@@ -39,7 +39,7 @@ namespace AvaAvaDance.Import
             if (dependencies.Elements().Count() != 1)
                 throw new InvalidDataException("未対応のVPM依存: " + string.Join(", ", dependencies.Elements().Where(e => e != dependency).Select(e => e.Name.LocalName)));
             if (installed == null || installed.name != LilToon || installed.repo != OfficialRepository)
-                throw new InvalidDataException("「シェーダー追加」で lilToon の .avadshader を読み込んでください。");
+                throw new InvalidDataException("右上の「シェーダー追加 → lilToon を導入」から、ライセンスを確認して導入してください。");
             var repositories = config.Element("vpmRepositories")?.Elements("item")
                 .Select(item => (string)item.Attribute("type") == "string" ? item.Value : (string)item.Element("url"));
             if (repositories == null || !repositories.Contains(installed.repo))

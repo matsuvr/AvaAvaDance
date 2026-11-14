@@ -16,18 +16,22 @@ namespace AvaAvaDance
         {
             public string format, model;
             public bool bones;
+            public VmdSidecar detached;
             public List<SavedTrack> tracks;
         }
 
         [Serializable]
         sealed class SavedTrack
         {
-            public string name;
+            public string name,id,activeLayer,activeClip;
+            public MotionLayer[] layers;
             public int[] frames;
+            public KeySource[] sources;
             public BonePose[] poses;
             public AccessoryPose[] props;
             public CameraPose[] cameras;
             public float[] weights;
+            public EaseCurve[] weightCurves;
             public LightPose[] lights;
             public ShadowPose[] shadows;
             public GravityPose[] gravity;
@@ -43,7 +47,7 @@ namespace AvaAvaDance
                 if (string.IsNullOrEmpty(path)) return;
                 status.text = title + "　" + Path.GetFileName(path); action(path);
             }
-            catch (Exception ex) { status.text = title + "中止　" + ex.Message; }
+            catch (Exception ex) { ReportActionError(title + "中止　", ex); }
         }
 
         static void WriteFile(string path, byte[] bytes)
@@ -61,29 +65,42 @@ namespace AvaAvaDance
         void ExportImage(string path) => WritePreview(path);
 
         const int MaxMotionBytes = 16 * 1024 * 1024;
+        const int MaxAvaMotionBytes = 128 * 1024 * 1024;
         void SaveMotion(string path)
         {
+            if (!path.EndsWith(".avamotion", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("モーションの保存には .avamotion を指定してください。");
             var motion = CaptureMotion(modelMode);
             byte[] bytes = Encoding.UTF8.GetBytes(JsonUtility.ToJson(motion));
-            if (bytes.Length > MaxMotionBytes) throw new IOException("モーションファイルのサイズ上限を超えています。");
+            if (bytes.Length > MaxAvaMotionBytes) throw new IOException("モーションファイルのサイズ上限を超えています。");
             WriteFile(path, bytes);
         }
 
-        SavedMotion CaptureMotion(bool model, bool draft = false)
+        SavedMotion CaptureMotion(bool model, bool draft = false, bool contentOnly = false)
         {
-            var motion = new SavedMotion { format = "AvaAvaDance motion 1", bones = model,
+            var motion = new SavedMotion { format = "AvaAvaDance motion 2", bones = model,
                 model = model ? actor.avatar.name : null, tracks = new List<SavedTrack>() };
+            if(!draft)motion.detached=model?actor.vmdSidecar:sceneSidecar;
             foreach (var track in model ? actor.modelTracks : sceneTracks)
             {
+                if(draft && contentOnly && !track.HasDraft(frame))continue;
                 var saved = new SavedTrack { name = track.Name, frames = draft ? new[] { 0 } : track.Frames.ToArray() };
+                if (!draft) { saved.id=track.Id; saved.activeLayer=contentOnly?null:track.ActiveLayer; saved.activeClip=contentOnly?null:track.ActiveClip; saved.layers=track.Layers.ToArray(); }
+                if(!draft && saved.frames.Any(f=>track.SourceAt(f)!=null))
+                    saved.sources=saved.frames.Select(track.SourceAt).ToArray();
                 T[] Values<T>() => saved.frames.Select(f => (T)(draft ? track.CurrentValue : track.KeyAt(f))).ToArray();
                 if (track is MotionTrack<CameraPose>) saved.cameras = Values<CameraPose>();
                 else if (track is MotionTrack<LightPose>) saved.lights = Values<LightPose>();
-                else if (track is MotionTrack<float>) saved.weights = Values<float>();
+                else if (track is MotionTrack<float>)
+                {
+                    saved.weights = Values<float>();
+                    if (!draft && saved.frames.Any(f => track.CurveAt(f).custom))
+                        saved.weightCurves=saved.frames.Select(track.CurveAt).ToArray();
+                }
                 else if (track is MotionTrack<ShadowPose>) saved.shadows = Values<ShadowPose>();
                 else if (track is MotionTrack<GravityPose>) saved.gravity = Values<GravityPose>();
                 else if (track is MotionTrack<SwitchPose>) saved.switches = Values<SwitchPose>();
-                else if (track is MotionTrack<AccessoryPose>) saved.props = Values<AccessoryPose>();
+                else if (track is MotionTrack<AccessoryPose>) saved.props = Values<AccessoryPose>().Select(SavePropParent).ToArray();
                 else saved.poses = Values<BonePose>();
                 motion.tracks.Add(saved);
             }
@@ -93,7 +110,7 @@ namespace AvaAvaDance
         void LoadMotion(string path)
         {
             using var stream = File.OpenRead(path);
-            if (stream.Length > MaxMotionBytes) throw new InvalidDataException("モーションファイルが大きすぎます。");
+            if (stream.Length > MaxAvaMotionBytes) throw new InvalidDataException("モーションファイルが大きすぎます。");
             using var input = new StreamReader(stream, Encoding.UTF8);
             var motion = JsonUtility.FromJson<SavedMotion>(input.ReadToEnd());
             RestoreMotion(motion, modelMode, false, true);
@@ -102,12 +119,13 @@ namespace AvaAvaDance
 
         void RestoreMotion(SavedMotion motion, bool model, bool draft = false, bool legacy = false)
         {
-            if (motion?.format != "AvaAvaDance motion 1" || motion.tracks == null)
+            if (motion == null || (motion.format != "AvaAvaDance motion 1" && motion.format != "AvaAvaDance motion 2") || motion.tracks == null)
                 throw new InvalidDataException("AvaAvaDanceのモーション形式を選択してください。");
             if (motion.bones != model || (model && (actor.avatar == null || motion.model != actor.avatar.name)))
                 throw new InvalidDataException("保存時と同じモデルまたはカメラ編集を選択してください。");
             var expected = (model ? actor.modelTracks : sceneTracks).ToDictionary(t => (t.Name, t.GetType()));
             var loaded = new Dictionary<MotionTrack, List<KeyValuePair<int, object>>>();
+            var layerData=new Dictionary<MotionTrack,SavedTrack>();
             foreach (var saved in motion.tracks)
             {
                 var type = saved?.poses?.Length > 0 ? typeof(MotionTrack<BonePose>) :
@@ -123,6 +141,13 @@ namespace AvaAvaDance
                 Array values = track == cameraTrack ? (Array)saved.cameras : track == lightTrack ? saved.lights : track is MotionTrack<float> ? saved.weights : track is MotionTrack<AccessoryPose> ? saved.props : track is MotionTrack<ShadowPose> ? saved.shadows : track is MotionTrack<GravityPose> ? saved.gravity : track is MotionTrack<SwitchPose> ? saved.switches : (Array)saved.poses;
                 if (values == null || values.Length != saved.frames.Length)
                     throw new InvalidDataException("キー数が一致しません。");
+                if(saved.sources?.Length>0 && (draft || saved.sources.Length!=saved.frames.Length ||
+                    saved.sources.Any(s=>s!=null && (s.name?.Length>0 && s.name.Length!=15 ||
+                        s.ik?.Length>0 && (s.ik.Length%21!=0 || !(track is MotionTrack<SwitchPose>))))))
+                    throw new InvalidDataException("キーの入力情報が不正です。");
+                if (saved.weightCurves?.Length > 0 && (draft || !(track is MotionTrack<float>) ||
+                    saved.weightCurves.Length != values.Length || saved.weightCurves.Any(c=>!c.Valid)))
+                    throw new InvalidDataException("表情の補間曲線が不正です。");
                 var keys = new List<KeyValuePair<int, object>>();
                 for (int i = 0; i < values.Length; i++)
                 {
@@ -131,11 +156,23 @@ namespace AvaAvaDance
                         throw new InvalidDataException("フレーム番号が不正です。");
                     var value = values.GetValue(i);
                     if (!ValidPose(value)) throw new InvalidDataException("登録値が不正です。");
+                    if (saved.weightCurves?.Length > 0) value = new MorphKey {Weight=(float)value, Curve=saved.weightCurves[i]};
                     keys.Add(new KeyValuePair<int, object>(f, value));
+                }
+                if(!draft)
+                {
+                    if(saved.layers?.Length>0)
+                    {
+                        if(!track.SupportsLayers || saved.layers.Length>256 || saved.layers.Any(l=>l==null) || saved.layers.Select(l=>l.id).Distinct().Count()!=saved.layers.Length)
+                            throw new InvalidDataException("レイヤー構成が不正です。");
+                        foreach(var layer in saved.layers) layer.Validate();
+                    }
+                    layerData.Add(track,saved);
                 }
                 loaded.Add(track, keys);
             }
             var optional = new HashSet<MotionTrack>();
+            if(model)optional.UnionWith(actor.logicalControls);
             if (legacy)
             {
                 optional.UnionWith(new MotionTrack[] { gravityTrack, shadowTrack, actor.modelSwitch });
@@ -145,13 +182,32 @@ namespace AvaAvaDance
             }
             var missing = expected.Values.FirstOrDefault(t => !loaded.ContainsKey(t) && !optional.Contains(t));
             if (missing != null) throw new InvalidDataException("必要なトラックがありません: " + missing.Name);
+            if(!draft)
+            {
+                var detached=motion.detached??new VmdSidecar();detached.records??=new List<DetachedKey>();
+                int[] sizes={111,23,61,28,9,9};
+                foreach(var key in detached.records)
+                {
+                    int ch=(int)(key?.channel??(Ava.Extensions.MotionChannel)99);
+                    if(ch<0 || ch>=6 || key.data==null || (ch==5?key.data.Length<9 || key.data.Length!=9L+21L*BitConverter.ToUInt32(key.data,5):key.data.Length!=sizes[ch]))
+                        throw new InvalidDataException("未割当キーが不正です。");
+                }
+                if(model)actor.vmdSidecar=detached;else sceneSidecar=detached;
+            }
             // Only replace the target tracks once the entire file has been validated.
             foreach (var entry in loaded)
             {
                 var track = entry.Key;
                 if (draft) { track.Restore(entry.Value[0].Value); continue; }
+                var saved=layerData[track]; if(!string.IsNullOrEmpty(saved.id)) track.Id=saved.id;
+                track.Layers.Clear(); if(saved.layers!=null) track.Layers.AddRange(saved.layers);
+                track.ActiveLayer=track.Layers.Any(l=>l.id==saved.activeLayer)?saved.activeLayer:null;
+                track.ActiveClip=track.Target?.clips.Find(c=>c.id==saved.activeClip)?.id;
                 foreach (int f in track.Frames.Skip(1).ToArray()) track.Write(f, null);
+                track.ClearSources();
                 foreach (var key in entry.Value) track.Write(key.Key, key.Value);
+                if(saved.sources?.Length>0)for(int i=0;i<saved.frames.Length;i++)if(saved.sources[i]!=null &&
+                    (saved.sources[i].name?.Length>0 || saved.sources[i].ik?.Length>0))track.SetSource(saved.frames[i],saved.sources[i]);
             }
             if(!draft) InvalidateDynamics();
             DiscardHistory(undo, loaded.ContainsKey); DiscardHistory(redo, loaded.ContainsKey);
@@ -164,7 +220,7 @@ namespace AvaAvaDance
             if (value is ShadowPose shadow) return shadow.Mode >= 0 && shadow.Mode <= 2 && shadow.Range >= 0 && shadow.Range <= 9999;
             if (value is GravityPose g) return g.Acceleration >= 0 && g.Acceleration <= 1000 && VectorOK(g.Direction) && g.NoiseAmount >= 0 && g.NoiseAmount <= 100;
             if (value is SwitchPose sw) return sw.DisabledIK==null || (sw.DisabledIK.Length<=2048 && sw.DisabledIK.All(n=>!string.IsNullOrEmpty(n)));
-            if (value is float weight) return weight >= 0 && weight <= 1;
+            if (value is float weight) return float.IsFinite(weight);
             if (value is CameraPose camera)
                 return CurveSet.Valid(camera.Curves) && VectorOK(camera.Center) && VectorOK(camera.Angles) && Mathf.Abs(camera.Distance) <= 100000
                     && camera.ViewAngle >= 1 && camera.ViewAngle <= 135;

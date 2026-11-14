@@ -80,6 +80,12 @@ MonoBehaviour:
   radius: 0.012
   colliders:
   - {fileID: 9102}
+--- !u!65 &9193
+BoxCollider:
+  m_GameObject: {fileID: 1703}
+  m_Enabled: 1
+  m_Center: {x: 0.1, y: 0, z: -0.2}
+  m_Size: {x: 0.6, y: 0.12, z: 0.25}
 --- !u!114 &9102
 MonoBehaviour:
   m_GameObject: {fileID: 1701}
@@ -101,6 +107,13 @@ with tarfile.open(out / "rig.unitypackage", "w:gz", format=tarfile.USTAR_FORMAT)
                                 ("3"*32, "Avatar.controller", "controller test data"),
                                 ("4"*32, "MetadataOnlyFolder", None)]:
         members = {"pathname": ("Assets/Test/"+path).encode(), "asset.meta": b"fileFormatVersion: 2\n"}
+        if path == "Rig.fbx":
+            members["asset.meta"] += """ModelImporter:
+  humanDescription:
+    human:
+    - boneName: TestBone
+      humanName: Head
+""".encode()
         if payload is not None:
             members["asset"] = payload.encode()
         for name, data in members.items():

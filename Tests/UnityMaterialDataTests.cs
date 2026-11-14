@@ -23,6 +23,8 @@ class UnityMaterialDataTests
         Check(UnityMaterialData.ResolveByName(new[]{m,m},m.Name)==null,"ambiguous resolve");
         Reject(Head+"    m_Floats:\n    - _A: NaN\n","NaN");
         Reject(Head+"    m_Floats:\n    - _A: Infinity\n","infinity");
+        var particles=UnityMaterialData.Parse(Head+"    m_Colors:\n    - _CameraFadeParams: {r: 0, g: Infinity, b: 0, a: 0}\n");
+        Check(float.IsPositiveInfinity(particles.Colors["_CameraFadeParams"].G),"serialized particle fade reciprocal");
         Reject(Head+"    m_Floats:\n    - _A: 1e999\n","overflow");
         Reject(Head+"    m_Ints:\n    - _A: 1.5\n","fraction int");
         Reject(Head+"    m_Ints:\n    - _A: 2147483648\n","int overflow");
@@ -64,6 +66,20 @@ class UnityMaterialDataTests
         keywordLimit.Append("  - _K64\n");Reject(keywordLimit.ToString(),"65 keywords rejected");
         var zeroTexture=UnityMaterialData.Parse(Head+"    m_TexEnvs:\n    - _Empty:\n        m_Texture: {fileID: 0, guid: 00000000000000000000000000000000, type: 3}\n");
         Check(zeroTexture.Textures["_Empty"].FileId==0&&zeroTexture.Textures["_Empty"].Guid=="00000000000000000000000000000000","zero texture reference");
+        var renderState=UnityMaterialData.Parse(keywordHead+"  stringTagMap:\n    RenderType: TransparentCutout\n  disabledShaderPasses:\n  - SHADOWCASTER\n");
+        Check(renderState.Tags["RenderType"]=="TransparentCutout" && renderState.DisabledPasses[0]=="SHADOWCASTER","serialized pass and tag overrides");
+        const string meta="TextureImporter:\n  mipmaps:\n    enableMipMap: 1\n    sRGBTexture: 1\n  textureSettings:\n    wrapU: 1\n    wrapV: 0\n    filterMode: 2\n  maxTextureSize: 2048\n  platformSettings:\n  - serializedVersion: 3\n    buildTarget: DefaultTexturePlatform\n    maxTextureSize: 4096\n  - serializedVersion: 3\n    buildTarget: Standalone\n    maxTextureSize: 512\n    overridden: 0\n";
+        var mask=PackageTextureSettings.Read(meta,true);
+        Check(!mask.Linear && mask.Mipmaps && mask.MaxSize==4096 && mask.WrapU==1 && mask.WrapV==0 && mask.Filter==2,"sRGB mask and inherited platform settings");
+        var normal=PackageTextureSettings.Read(meta.Replace("overridden: 0","overridden: 1")+"  textureType: 1\n  bumpmap:\n    flipGreenChannel: 1\n",false);
+        Check(normal.Linear && normal.NormalMap && normal.FlipGreen && normal.MaxSize==512,"standalone normal map override");
+        const string modelGuid="11111111111111111111111111111111", matGuid="22222222222222222222222222222222";
+        var model=new UnityPackageReader.PackageAsset(modelGuid,"Assets/Model.fbx",null,null);
+        string prefabText="--- !u!1 &1\nGameObject:\n  m_Name: Static\n--- !u!23 &2\nMeshRenderer:\n  m_GameObject: {fileID: 1}\n  m_CastShadows: 0\n  m_ReceiveShadows: 0\n  m_Materials:\n  - {fileID: 0}\n  - {fileID: 2100000, guid: "+matGuid+", type: 2}\n--- !u!33 &3\nMeshFilter:\n  m_GameObject: {fileID: 1}\n  m_Mesh: {fileID: 4300000, guid: "+modelGuid+", type: 3}\n";
+        AvatarMaterialBindings ReadPrefab(string doc)=>AvatarMaterialBindings.Read(model,new UnityPackageReader.PackageAsset("","Assets/Test.prefab",Encoding.UTF8.GetBytes(doc),null));
+        var staticSlots=ReadPrefab(prefabText).Renderers["Static"];
+        Check(staticSlots.Visible && staticSlots.CastShadows==0 && !staticSlots.ReceiveShadows && staticSlots.Materials.Length==2 && staticSlots.Materials[0]==null && staticSlots.Materials[1]==matGuid,"matching mesh filter, cast/receive off and ordered material slots");
+        Check(ReadPrefab(prefabText.Replace(modelGuid,matGuid)).Renderers.Count==0,"ignore renderer on a different FBX");
         Console.WriteLine("PASS "+tests+" material checks");
     }
 }

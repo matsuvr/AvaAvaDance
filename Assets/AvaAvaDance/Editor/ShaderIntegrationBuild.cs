@@ -4,6 +4,10 @@ namespace AvaAvaDance.Editor
 {
  public static class ShaderIntegrationBuild
  {
+  public static void SurfaceFixture()
+  {
+   ShaderPackBuilder.Build(new[]{"Assets/AvaAvaDance/ShaderFixtures/GrabFixture.shader"},"Builds/GrabFixture.avadshader");
+  }
   public static void Packs()
   {
    PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneWindows64,false);

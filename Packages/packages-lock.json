@@ -14,6 +14,20 @@
       "dependencies": {},
       "url": "https://packages.unity.com"
     },
+    "com.unity.nuget.mono-cecil": {
+      "version": "1.11.6",
+      "depth": 1,
+      "source": "registry",
+      "dependencies": {},
+      "url": "https://packages.unity.com"
+    },
+    "com.unity.nuget.newtonsoft-json": {
+      "version": "3.2.1",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {},
+      "url": "https://packages.unity.com"
+    },
     "com.unity.test-framework": {
       "version": "1.4.6",
       "depth": 1,
@@ -37,6 +51,15 @@
       },
       "url": "https://packages.unity.com"
     },
+    "com.unity.ugui": {
+      "version": "1.0.0",
+      "depth": 1,
+      "source": "builtin",
+      "dependencies": {
+        "com.unity.modules.ui": "1.0.0",
+        "com.unity.modules.imgui": "1.0.0"
+      }
+    },
     "com.vrmc.gltf": {
       "version": "https://github.com/vrm-c/UniVRM.git?path=/Packages/UniGLTF#v0.131.4",
       "depth": 0,
@@ -59,6 +82,17 @@
         "com.vrmc.gltf": "0.131.4"
       },
       "hash": "efd20f62f1bf0ac3fcc34de1e497324c5197d146"
+    },
+    "io.github.hatayama.uloopmcp": {
+      "version": "3.23.1",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.ugui": "1.0.0",
+        "com.unity.nuget.newtonsoft-json": "3.2.1",
+        "com.unity.nuget.mono-cecil": "1.11.6"
+      },
+      "url": "https://package.openupm.com"
     },
     "com.unity.modules.animation": {
       "version": "1.0.0",

@@ -4,6 +4,23 @@ add_library(AvaFbx SHARED ava_fbx.c ufbx.c)
 target_compile_definitions(AvaFbx PRIVATE UFBX_NO_STDIO)
 set_property(TARGET AvaFbx PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
+add_library(AvaRenderBridge SHARED ava_render.cpp ava_animation.cpp ava_panel_present.cpp)
+target_compile_features(AvaRenderBridge PRIVATE cxx_std_17)
+find_path(UNITY_PLUGIN_API IUnityGraphics.h HINTS "$ENV{UNITY_PLUGIN_API}"
+    "$ENV{ProgramFiles}/Unity/Hub/Editor/2022.3.22f1/Editor/Data/PluginAPI")
+if(UNITY_PLUGIN_API)
+    target_include_directories(AvaRenderBridge PRIVATE "${UNITY_PLUGIN_API}")
+    target_compile_definitions(AvaRenderBridge PRIVATE AVA_UNITY_DEVICE_EVENTS)
+endif()
+target_link_libraries(AvaRenderBridge PRIVATE d3d11 d3dcompiler dxgi dxguid ole32 gdiplus shlwapi)
+set_property(TARGET AvaRenderBridge PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
+add_library(AvaClassicUi SHARED ava_classic_ui.cpp ava_panel.cpp)
+target_compile_features(AvaClassicUi PRIVATE cxx_std_17)
+target_link_libraries(AvaClassicUi PRIVATE shell32 ole32 comctl32 comdlg32 gdi32 user32 imm32)
+target_compile_options(AvaClassicUi PRIVATE /utf-8)
+set_property(TARGET AvaClassicUi PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
 add_library(AvaMp4 SHARED ava_mp4.cpp)
 target_link_libraries(AvaMp4 PRIVATE mfplat mfreadwrite mfuuid ole32)
 set_property(TARGET AvaMp4 PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

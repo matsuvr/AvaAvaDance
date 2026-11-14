@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "avaavadance": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--script", "Tools/ava_mcp.py"]
+    }
+  }
+}

@@ -25,10 +25,23 @@ namespace AvaAvaDance
             public ModelOverrides modelSettings;
             [NonSerialized] public List<Asset> payload;
         }
+        [Serializable] sealed class SelectedKeyState { public string track; public int frame; }
+        [Serializable] sealed class SessionSelection
+        {
+            public string active,bone;
+            public string[] rows,bones;
+            public SelectedKeyState[] keys;
+            public bool range;
+        }
         [Serializable] sealed class Project : ModelState
         {
-            public string format="AvaAvaDance project 1", start, end, selection, soundName;
+            public string format="AvaAvaDance project 2", start, end, selection, soundName;
             public List<ModelState> others;
+            public int schemaVersion=2, extensionStorageVersion=1;
+            public int[] bookmarks;
+            public BookmarkNote[] bookmarkNotes;
+            public SessionSelection selected;
+            [NonSerialized] public Dictionary<string,byte[]> extensionPayload;
             public string[] renderOrder, simulationOrder;
             public int shaderCount, frame, samples, rate, channels, physics, engine;
             public SavedMotion sceneMotion,sceneDraft;
@@ -39,67 +52,85 @@ namespace AvaAvaDance
             public MovieSettings output;
             public ViewOptions display;
             public List<AccessoryData> accessories;
+            public BoneLink[] constraints;
             public int screenMode;
             [NonSerialized] public byte[] image, video;
         }
-        const int MaxProjectJson=64*1024*1024;
+        const int MaxProjectJson=512*1024*1024;
 
         string projectPath, savedState;
         byte[] savedImage, savedVideo;
-        Asset savedModel;
-        AudioClip savedClip;
-        bool allowQuit;
+        Asset[] savedModels;
+        WaveState savedWave;
+        bool allowQuit,drainingExtensions;
+        System.Threading.Tasks.Task shutdownTask;
 
         void RememberModel(Asset model,List<Asset> package,Asset prefab)
         {
-            actor.modelGuid=model.Guid;
+            sourceRevision++;actor.modelGuid=model.Guid;
             actor.prefabGuid=prefab?.Guid;
             actor.modelAssets.AddRange(package);
         }
 
-        void CaptureActor(ModelState state)
+        void CaptureActor(ModelState state,bool contentOnly=false)
         {
             state.id=actor.avatar==null?null:actor.id;state.label=actor.label;state.modelGuid=actor.modelGuid;state.prefabGuid=actor.prefabGuid;
-            state.modelSettings=actor.modelOverrides;state.visible=actor.avatar!=null && actor.avatar.activeSelf;
+            state.modelSettings=actor.modelOverrides;state.visible=!contentOnly && actor.avatar!=null && actor.avatar.activeSelf;
             state.selfShadow=actor.modelSelfShadow;state.customIK=actor.customIK.ToArray();
             state.dynamicOn=actor.extraDynamic.ToArray();state.dynamicOff=actor.excludedDynamic.ToArray();
             state.assets=actor.modelAssets.Select(a=>new AssetInfo{guid=a.Guid,path=a.Path,metadataOnly=!a.HasAsset}).ToList();
             state.payload=actor.modelAssets.ToList();
-            if(actor.avatar!=null){state.modelMotion=CaptureMotion(true);state.modelDraft=CaptureMotion(true,true);}
+            if(actor.avatar!=null){state.modelMotion=CaptureMotion(true,false,contentOnly);state.modelDraft=CaptureMotion(true,true,contentOnly);}
         }
 
-        Project CaptureProject()
+        Project CaptureProject(bool contentOnly=false)
         {
             var clip=soundtrack.clip;
+            var selectedState=contentOnly?null:new SessionSelection {
+                active=selectedTrack?.Id,bone=actor.selectedBone?.Track.Id,range=rangeSelected,
+                rows=selectedRows.Select(t=>t.Id).ToArray(),bones=boneSelection.Select(b=>b.Track.Id).ToArray(),
+                keys=selectedKeys.Select(k=>new SelectedKeyState{track=k.track.Id,frame=k.frame}).ToArray()
+            };
             var p=new Project {
-                accessories=props.Select(a=>a.Data).ToList(),screenMode=screenMode,
+                bookmarkNotes=bookmarkMemos.OrderBy(p=>p.Key).Select(p=>new BookmarkNote{frame=p.Key,memo=p.Value}).ToArray(),bookmarks=bookmarks.ToArray(),selected=selectedState, extensionPayload=new Dictionary<string,byte[]>(extraEntries),
+                accessories=props.Select(a=>a.Data).ToList(),constraints=externalParents.ToArray(),screenMode=screenMode,
                 display=JsonUtility.FromJson<ViewOptions>(JsonUtility.ToJson(viewOptions)), image=imageBytes, video=videoBytes,
                 shaderCount=shaderLibrary.ProjectPacks.Count(), frame=frame, selection=selectedTrack?.Name,
-                sceneMotion=CaptureMotion(false), sceneDraft=CaptureMotion(false,true),
+                sceneMotion=CaptureMotion(false,false,contentOnly), sceneDraft=CaptureMotion(false,true,contentOnly),
                 modelMode=modelMode,editorView=modelView,fromCamera=useCameraView,
-                repeat=repeat.value,start=playFrom.value,end=playTo.value,grid=gridToggle.value,
+                repeat=transportRepeat,start=transportStart,end=transportEnd,grid=gridToggle.value,
                 samples=clip!=null?clip.samples:0,rate=clip!=null?clip.frequency:0,channels=clip!=null?clip.channels:0,soundName=clip!=null?clip.name:null,
                 volume=soundtrack.volume,mute=muteWave,scrub=scrubSound,groundShadow=groundShadow,
                 groundBrightness=groundBrightness,transparentGround=transparentGround,showSelfShadow=showSelfShadow,
                 engine=(int)physicsEngine,physics=(int)physicsMode,floor=physicalFloor,forcePhysics=forceOnPlayback,showBodies=showBodies,
                 output=movie, renderOrder=drawOrder.Select(a=>a.id).ToArray(),simulationOrder=calculationOrder.Select(a=>a.id).ToArray()
             };
-            CaptureActor(p);p.others=new List<ModelState>();
-            var selected=actor;
+            var selected=actor; p.others=new List<ModelState>();
             try {
-                foreach(var item in drawOrder)if(item!=selected){actor=item;var m=new ModelState();CaptureActor(m);p.others.Add(m);}
+                if(contentOnly && drawOrder.Count>0)actor=drawOrder[0];
+                var root=actor;CaptureActor(p,contentOnly);
+                foreach(var item in drawOrder)if(item!=root){actor=item;var m=new ModelState();CaptureActor(m,contentOnly);p.others.Add(m);}
             } finally {actor=selected;}
+            if(contentOnly)
+            {
+                bool hasDraft=p.sceneDraft.tracks.Count>0 || p.modelDraft?.tracks.Count>0 || p.others.Any(m=>m.modelDraft?.tracks.Count>0);
+                if(!hasDraft)p.frame=0;
+                p.selection=null; p.modelMode=false; p.editorView=default; p.fromCamera=false; p.grid=false;
+                p.display.information=false;p.display.follow=false;p.display.translucent=false;p.showBodies=false;
+            }
             return p;
         }
 
+        IEnumerable<Asset> CurrentModels() => drawOrder.Select(a=>a.modelAssets.FirstOrDefault(m=>m.Guid==a.modelGuid));
+
         void MarkSaved()
         {
-            savedImage=imageBytes; savedVideo=videoBytes;
-            savedState=JsonUtility.ToJson(CaptureProject()); savedModel=actor.modelAssets.FirstOrDefault(a=>a.Guid==actor.modelGuid); savedClip=soundtrack.clip;
+            savedEntries=new Dictionary<string,byte[]>(extraEntries); savedImage=imageBytes; savedVideo=videoBytes;
+            savedState=JsonUtility.ToJson(CaptureProject(true)); savedModels=CurrentModels().ToArray(); savedWave=CurrentWave;
         }
 
-        bool ProjectChanged() => savedImage!=imageBytes || savedVideo!=videoBytes || savedModel!=actor.modelAssets.FirstOrDefault(a=>a.Guid==actor.modelGuid) ||
-            savedClip!=soundtrack.clip || savedState!=JsonUtility.ToJson(CaptureProject());
+        bool ProjectChanged() => savedEntries==null || savedEntries.Count!=extraEntries.Count || extraEntries.Any(e=>!savedEntries.TryGetValue(e.Key,out var prior) || !prior.SequenceEqual(e.Value)) || savedImage!=imageBytes || savedVideo!=videoBytes || !CurrentModels().SequenceEqual(savedModels) ||
+            savedWave!=CurrentWave || savedState!=JsonUtility.ToJson(CaptureProject(true));
 
         bool SaveProjectCommand(bool saveAs)
         {
@@ -109,7 +140,7 @@ namespace AvaAvaDance
                 string path=saveAs || projectPath==null?PackageFileDialog.Save("名前を付けて保存","avadance"):projectPath;
                 if(string.IsNullOrEmpty(path))return false;
                 SaveProject(path); status.text="プロジェクト保存　"+Path.GetFileName(path); return true;
-            } catch(Exception ex) {status.text="保存中止　"+ex.Message;return false;}
+            } catch(Exception ex) {ReportActionError("保存中止　",ex);return false;}
         }
 
         void BeforeReplace(Action proceed)
@@ -127,19 +158,38 @@ namespace AvaAvaDance
         bool QuitProject()
         {
             if(exporting){cancelExport=true;return false;}
-            if(allowQuit || Environment.GetCommandLineArgs().Contains("-avaSmokeOutput"))return true;
-            if(!ProjectChanged())return true;
-            BeforeReplace(()=>{allowQuit=true;Application.Quit();}); return false;
+            if(drainingExtensions)return shutdownTask?.IsCompleted==true;
+            if(!allowQuit && !Environment.GetCommandLineArgs().Contains("-avaSmokeOutput") && ProjectChanged()){
+                BeforeReplace(()=>{allowQuit=true;Application.Quit();});return false;
+            }
+            drainingExtensions=true;var tasks=new List<System.Threading.Tasks.Task>();
+            if(operations!=null)tasks.Add(operations.CloseAsync());
+            if(floatingTime!=null)tasks.Add(floatingTime.CloseAsync());if(floatingWave!=null)tasks.Add(floatingWave.CloseAsync());
+            foreach(var ext in extensions){
+                ext.active=false;ext.activation++;
+                if(ext.plugin is Ava.Extensions.IAsyncShutdown closing)
+                    try{tasks.Add(closing.CloseAsync());}catch(Exception ex){Debug.LogWarning(ex.Message);}
+            }
+            shutdownTask=System.Threading.Tasks.Task.WhenAll(tasks);
+            if(shutdownTask.IsCompleted)return true;
+            AcquireActivity();StartCoroutine(FinishShutdown());return false;
+        }
+        System.Collections.IEnumerator FinishShutdown()
+        {
+            while(!shutdownTask.IsCompleted){PumpExtensions();yield return null;}
+            if(shutdownTask.IsFaulted)Debug.LogWarning(shutdownTask.Exception);
+            DisposeExtensions();ReleaseActivity();Application.Quit();
         }
         void NewProjectCommand()=>BeforeReplace(NewProject);
         void OpenProjectCommand()=>BeforeReplace(()=> {
             try { string path=PackageFileDialog.Open("開く","avadance"); if(path!=null) OpenProject(path); }
-            catch(Exception ex){status.text="プロジェクト読込中止　"+ex.Message;}
+            catch(Exception ex){ReportActionError("プロジェクト読込中止　",ex);}
         });
 
         void NewProject()
         {
-            ClearAllActors(); ChangeMode(false); RestoreAccessories(new Project());
+            documentGeneration++; extraEntries=new Dictionary<string,byte[]>(); bookmarks.Clear();bookmarkMemos.Clear();sceneSidecar=new VmdSidecar();
+            externalParents.Clear();ClearAllActors(); ChangeMode(false); RestoreAccessories(new Project());
             shaderLibrary.RestoreProjectPacks(Array.Empty<byte[]>());
             soundtrack.Stop(); var old=soundtrack.clip; soundtrack.clip=null; if(old!=null)Destroy(old);
             peaks=Array.Empty<Vector2>(); waveform.MarkDirtyRepaint();
@@ -149,10 +199,10 @@ namespace AvaAvaDance
             scrubSound=muteWave=false; soundVolume.value=1; gridToggle.value=true;
             playFrom.value="";playTo.value="";repeat.value=false;
             modelView=CameraPose.Initial;front=Vector3.forward;useCameraView=false;movie=new MovieSettings();
-            foreach(var t in sceneTracks) foreach(int f in t.Frames.Skip(1).ToArray())t.Write(f,null);
+            foreach(var t in sceneTracks) {t.ClearSources();t.Layers.Clear();t.ActiveLayer=t.ActiveClip=null;foreach(int f in t.Frames.Skip(1).ToArray())t.Write(f,null);}
             cameraTrack.Write(0,CameraPose.Initial);lightTrack.Write(0,LightPose.Initial);
             shadowTrack.Write(0,ShadowPose.Initial);gravityTrack.Write(0,GravityPose.Initial);
-            ResetHistory(); SelectTrack(cameraTrack); SetFrame(0); projectPath=null; MarkSaved(); status.text="新規プロジェクト";
+            ResetHistory(); SelectTrack(cameraTrack); SetFrame(0); projectPath=null; NotifyProject(projectOpened,null); MarkSaved(); status.text="新規プロジェクト";
         }
 
         void ResetHistory()
@@ -170,6 +220,7 @@ namespace AvaAvaDance
                     byte[] json=Encoding.UTF8.GetBytes(JsonUtility.ToJson(p));
                     if(json.Length>MaxProjectJson)throw new IOException("プロジェクト情報のサイズ上限を超えています。");
                     AddEntry(zip,"project.json",json);
+                    foreach (var entry in p.extensionPayload) AddEntry(zip,entry.Key,entry.Value);
                     for(int n=0;n<p.accessories.Count;n++) {
                         var prop=p.accessories[n];AddEntry(zip,"prop/"+n+"/mesh",prop.mesh);
                         for(int m=0;m<prop.textures.Length;m++)AddEntry(zip,"prop/"+n+"/tex"+m,prop.images[prop.textures[m]]);
@@ -184,7 +235,7 @@ namespace AvaAvaDance
                         TransferSamples(soundtrack.clip,output,true);
                     }
                 }
-                PublishFile(temp,path);projectPath=path;MarkSaved();
+                PublishFile(temp,path);projectPath=path;MarkSaved(); NotifyProject(projectSaved,path);
             } finally {if(File.Exists(temp))File.Delete(temp);}
         }
 
@@ -261,9 +312,10 @@ namespace AvaAvaDance
                     if(zip.Entries.Count>UnityPackageReader.MaxMembers || zip.Entries.Sum(e=>e.Length)>2L*1024*1024*1024 ||
                         zip.Entries.Select(e=>e.FullName).Distinct().Count()!=zip.Entries.Count)throw new InvalidDataException("不正なプロジェクト構成です。");
                     p=JsonUtility.FromJson<Project>(Encoding.UTF8.GetString(ReadEntry(zip,"project.json",MaxProjectJson)));
-                    if(p?.format!="AvaAvaDance project 1" || p.assets==null || p.frame<0 || p.frame>MaxFrame || p.output==null || !p.output.Valid ||
+                    if(p==null || !(p.format=="AvaAvaDance project 1" || p.format=="AvaAvaDance project 2" && p.schemaVersion==2) || p.assets==null || p.frame<0 || p.frame>MaxFrame || p.output==null || !p.output.Valid ||
                         p.engine<0 || p.engine>1 || p.physics<0 || p.physics>3 || p.shaderCount<0 || p.shaderCount>256 || !ValidPose(p.editorView) ||
                         !float.IsFinite(p.groundBrightness) || p.groundBrightness<0 || p.groundBrightness>2 || !float.IsFinite(p.volume) || p.volume<0 || p.volume>1)throw new InvalidDataException("プロジェクト設定が不正です。");
+                    p.extensionPayload=zip.Entries.Where(e=>e.FullName.StartsWith("extensions/",StringComparison.Ordinal) || e.FullName.StartsWith("host/",StringComparison.Ordinal)).ToDictionary(e=>e.FullName,e=>ReadEntry(zip,e.FullName,UnityPackageReader.MaxFileBytes));
                     if (p.accessories != null) {
                         if(p.accessories.Count>255 || p.accessories.Any(a=>string.IsNullOrEmpty(a?.name) || a.textures==null || a.textures.Length>8192))throw new InvalidDataException("アクセサリ構成が不正です。");
                         for(int n=0;n<p.accessories.Count;n++) {
@@ -299,14 +351,14 @@ namespace AvaAvaDance
                     ApplyProject(before,priorAssets,priorPacks,oldClip);
                     MotionTrack Map(MotionTrack track) => (priorModelTracks.TryGetValue(track,out string id)?drawOrder.First(a=>a.id==id).modelTracks:sceneTracks)
                         .First(t=>t.Name==track.Name && t.GetType()==track.GetType());
-                    KeyChange Remap(KeyChange change) { change.Track=Map(change.Track); return change; }
+                    KeyChange Remap(KeyChange change) { if (change.Track!=null) change.Track=Map(change.Track); return change; }
                     foreach(var group in undoBefore.Reverse())undo.Push(group.Select(Remap).ToArray());
                     foreach(var group in redoBefore.Reverse())redo.Push(group.Select(Remap).ToArray());
                     keyClipboard.AddRange(clipboardBefore.Select(Remap));poseClipboard=poseBefore;
                     rangeSelected=previousRange; foreach(var key in selectedBefore)selectedKeys.Add((Map(key.track),key.frame));
                     RefreshKeyButtons(); throw;
                 }
-                if(oldClip!=null)Destroy(oldClip);clip=null;projectPath=path;MarkSaved();
+                if(oldClip!=null)Destroy(oldClip);clip=null;projectPath=path;NotifyProject(projectOpened,path);MarkSaved();
                 status.text="プロジェクト読込　"+Path.GetFileName(path);
             } finally {if(clip!=null)Destroy(clip);}
         }
@@ -366,7 +418,10 @@ namespace AvaAvaDance
 
         void ApplyProject(Project p,List<Asset> assets,List<byte[]> packs,AudioClip clip)
         {
-            StopPlayback(); ClearAllActors();
+            documentGeneration++; extraEntries=p.extensionPayload ?? new Dictionary<string,byte[]>();
+            bookmarks.Clear(); if(p.bookmarks!=null) bookmarks.UnionWith(p.bookmarks.Where(f=>f>=0 && f<=MaxFrame));
+            bookmarkMemos.Clear();foreach(var note in p.bookmarkNotes??Array.Empty<BookmarkNote>())if(note!=null && bookmarks.Contains(note.frame) && !string.IsNullOrEmpty(note.memo))bookmarkMemos[note.frame]=note.memo;
+            StopPlayback();externalParents.Clear(); ClearAllActors();
             shaderLibrary.RestoreProjectPacks(packs);
             if(p.others!=null)foreach(var extra in p.others)RestoreActor(extra,extra.payload);
             if(!string.IsNullOrEmpty(p.modelGuid))RestoreActor(p,assets);else front=Vector3.forward;
@@ -380,14 +435,26 @@ namespace AvaAvaDance
             peaks=clip!=null?ReadWaveform(clip):Array.Empty<Vector2>();waveform.MarkDirtyRepaint();
             movie=p.output;playFrom.value=p.start??"";playTo.value=p.end??"";repeat.value=p.repeat;gridToggle.value=p.grid;
             ChangeMode(p.modelMode);SelectTrack(VisibleTracks.Find(t=>t.Name==p.selection)??VisibleTracks.FirstOrDefault());
-            ResetHistory();InvalidateDynamics();SetFrame(p.frame);
+            BindLinks(p.constraints??Array.Empty<BoneLink>());ResetHistory();InvalidateDynamics();SetFrame(p.frame);
             RestoreMotion(p.sceneDraft,false,true);
             var current=actor;
             try {
                 if(p.others!=null)foreach(var m in p.others){actor=drawOrder.First(a=>a.id==m.id);RestoreMotion(m.modelDraft,true,true);RefreshRigPreview();}
             } finally {actor=current;}
             if(actor.avatar!=null)RestoreMotion(p.modelDraft,true,true,legacy:string.IsNullOrEmpty(p.id));
-            RefreshRigPreview(); RestoreSolvedPose(); ApplyView(); SyncControls();RefreshKeyButtons();timeline.MarkDirtyRepaint();
+            if(p.selected?.active!=null)
+            {
+                var tracks=VisibleTracks.ToDictionary(t=>t.Id);
+                if(tracks.TryGetValue(p.selected.active,out var active))SelectTrack(active);
+                var lastBone=actor.bones.Find(b=>b.Track.Id==p.selected.bone);
+                if(lastBone!=null)actor.selectedBone=lastBone;
+                boneSelection.Clear();
+                foreach(var id in p.selected.bones??Array.Empty<string>()){var b=actor.bones.Find(j=>j.Track.Id==id);if(b!=null && !boneSelection.Contains(b))boneSelection.Add(b);}
+                selectedRows.Clear();foreach(var id in p.selected.rows??Array.Empty<string>())if(tracks.TryGetValue(id,out var row))selectedRows.Add(row);
+                rangeSelected=p.selected.range;
+                foreach(var key in p.selected.keys??Array.Empty<SelectedKeyState>())if(key?.track!=null && tracks.TryGetValue(key.track,out var track) && track.EditKey(key.frame)!=null)selectedKeys.Add((track,key.frame));
+            }
+            RefreshRigPreview(); RestoreSolvedPose(); ApplyView(); SyncControls();RefreshKeyButtons();RefreshTimelineLabels();RedrawOverlay();
         }
     }
 }

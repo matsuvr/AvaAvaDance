@@ -1,3 +1,4 @@
+using MmdText = Ava.Extensions.MmdText;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -47,9 +48,45 @@ namespace AvaAvaDance.Import
         delegate int Unlock(IntPtr self);
         delegate IntPtr Buffer(IntPtr self);
         [StructLayout(LayoutKind.Sequential)]
-        struct Surface { public Color diffuse,ambient,specular,emissive;public float power;public IntPtr texture; }
+        internal struct MaterialSurface { public Color diffuse,ambient,specular,emissive;public float power; }
+        [StructLayout(LayoutKind.Sequential)] struct Surface {public MaterialSurface properties;public IntPtr texture;}
 
-        internal static Mesh Load(byte[] source,out Color[] colors,out string[] maps)
+        static void CompleteNormals(ref Vector3[] vertices,ref Vector3[] normals,ref Vector2[] uv,List<int>[] subsets)
+        {
+            bool Valid(Vector3 n)=>float.IsFinite(n.sqrMagnitude) && n.sqrMagnitude>1e-16f;
+            if(normals.All(Valid))return;
+            var sums=new Vector3[vertices.Length];
+            foreach(var faces in subsets)for(int f=0;f<faces.Count;f+=3){
+                int a=faces[f],b=faces[f+1],c=faces[f+2];
+                var face=Vector3.Cross(vertices[b]-vertices[a],vertices[c]-vertices[a]);
+                sums[a]+=face;sums[b]+=face;sums[c]+=face;
+            }
+            var ambiguous=new bool[normals.Length];
+            for(int i=0;i<normals.Length;i++)if(!Valid(normals[i])){
+                if(Valid(sums[i]))normals[i]=sums[i].normalized;
+                else {ambiguous[i]=true;normals[i]=Vector3.back;}
+            }
+            if(!ambiguous.Any(v=>v))return;
+            // Opposite faces may share positions but need independent normals.
+            var positions=vertices.ToList();var directions=normals.ToList();var coords=uv.ToList();
+            var splits=new Dictionary<(int,Vector3),int>();
+            foreach(var faces in subsets)for(int f=0;f<faces.Count;f+=3){
+                int a=faces[f],b=faces[f+1],c=faces[f+2];
+                var face=Vector3.Cross(vertices[b]-vertices[a],vertices[c]-vertices[a]);
+                if(!Valid(face))continue;face.Normalize();
+                for(int j=f;j<f+3;j++){
+                    int index=faces[j];if(!ambiguous[index])continue;
+                    if(!splits.TryGetValue((index,face),out int split)){
+                        split=positions.Count;splits.Add((index,face),split);
+                        positions.Add(vertices[index]);directions.Add(face);coords.Add(uv[index]);
+                    }
+                    faces[j]=split;
+                }
+            }
+            vertices=positions.ToArray();normals=directions.ToArray();uv=coords.ToArray();
+        }
+
+        internal static Mesh Load(byte[] source,out MaterialSurface[] surfaces,out string[] maps)
         {
             using var device=new LegacyDevice();
             IntPtr original=IntPtr.Zero,mesh=IntPtr.Zero,materials=IntPtr.Zero;
@@ -72,25 +109,25 @@ namespace AvaAvaDance.Import
                     int j=i*8;vertices[i]=new Vector3(floats[j],floats[j+1],floats[j+2]);normals[i]=new Vector3(floats[j+3],floats[j+4],floats[j+5]);
                     uv[i]=new Vector2(floats[j+6],1-floats[j+7]);
                 }
-                colors=Enumerable.Repeat(Color.white,Math.Max(1,count)).ToArray();maps=new string[colors.Length];
+                surfaces=Enumerable.Repeat(new MaterialSurface{diffuse=Color.white},Math.Max(1,count)).ToArray();maps=new string[surfaces.Length];
                 if(count>0 && materials!=IntPtr.Zero) {
                     IntPtr start=LegacyDevice.Method<Buffer>(materials,3)(materials);
                     for(int i=0;i<count;i++) {
-                        var m=Marshal.PtrToStructure<Surface>(IntPtr.Add(start,i*Marshal.SizeOf<Surface>()));colors[i]=m.diffuse;
+                        var m=Marshal.PtrToStructure<Surface>(IntPtr.Add(start,i*Marshal.SizeOf<Surface>()));surfaces[i]=m.properties;
                         if(m.texture!=IntPtr.Zero) { var bytes=new List<byte>();byte b;
                             while(bytes.Count<512 && (b=Marshal.ReadByte(m.texture,bytes.Count))!=0)bytes.Add(b);
                             maps[i]=MmdText.Decode(bytes.ToArray());
                         }
                     }
                 }
-                var subsets=Enumerable.Range(0,colors.Length).Select(_=>new List<int>()).ToArray();
+                var subsets=Enumerable.Range(0,surfaces.Length).Select(_=>new List<int>()).ToArray();
                 for(int i=0;i<nf;i++) {
                     if(attrs[i]<0 || attrs[i]>=subsets.Length)throw new InvalidDataException("X材質番号が不正です。");
                     var set=subsets[attrs[i]];set.Add(indices[3*i]);set.Add(indices[3*i+1]);set.Add(indices[3*i+2]);
                 }
+                CompleteNormals(ref vertices,ref normals,ref uv,subsets);
                 var result=new Mesh {indexFormat=IndexFormat.UInt32,vertices=vertices,normals=normals,uv=uv,subMeshCount=subsets.Length};
                 for(int i=0;i<subsets.Length;i++)result.SetTriangles(subsets[i],i);
-                if(normals.All(n=>n.sqrMagnitude<.0001f))result.RecalculateNormals();
                 result.RecalculateBounds();return result;
             } finally {LegacyDevice.ReleaseCom(ref mesh);LegacyDevice.ReleaseCom(ref materials);LegacyDevice.ReleaseCom(ref original);}
         }
