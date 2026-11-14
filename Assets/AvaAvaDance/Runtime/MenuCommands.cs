@@ -82,7 +82,7 @@ namespace AvaAvaDance
             Bind(Command.DeleteBrows, () => DeleteMorphGroup(2), HasMorphs);
             Bind(Command.ShiftLips, ShiftLipFrames, () => modelMode && morphGroups[1].Tracks.Count > 0);
             Bind(Command.Blink, RandomBlink, () => modelMode && BlinkTrack() != null);
-            Bind(Command.LipSync, () => FileAction("VSQ / VSQXによるリップシンク", "vsq;vsqx", false, ImportLipSync),
+            Bind(Command.LipSync, () => FileAction("VSQ / VSQX / TSSPRJによるリップシンク", "vsq;vsqx;tssprj", false, ImportLipSync),
                 () => modelMode && morphGroups[1].Tracks.Count > 0);
             Bind(Command.ResetMorphs, () => {
                 StopPlayback(); foreach (var t in actor.modelTracks.OfType<MotionTrack<float>>()) t.Preview(0); SyncControls();

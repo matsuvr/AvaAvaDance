@@ -13,6 +13,14 @@ namespace AvaAvaDance
     {
         void ImportLipSync(string path)
         {
+            if (Path.GetExtension(path).Equals(".tssprj", StringComparison.OrdinalIgnoreCase)) {
+                var songNotes = SongLipReader.ReadTssprj(ReadMmdFile(path));
+                var songEdits = new Dictionary<(MotionTrack, int), float>();
+                foreach (var note in songNotes)
+                    AddLipKeys(songEdits, note.Phoneme, note.Lyric, note.Start, note.End, "TSSPRJ");
+                CommitLipKeys(songEdits);
+                return;
+            }
             if (!Path.GetExtension(path).Equals(".vsqx", StringComparison.OrdinalIgnoreCase)) { ImportVsq(path); return; }
             var notes = VsqxDocument.Parse(ReadMmdFile(path));
             var edits = new Dictionary<(MotionTrack, int), float>();
