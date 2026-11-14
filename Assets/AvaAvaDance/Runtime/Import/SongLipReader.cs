@@ -30,24 +30,36 @@ namespace AvaAvaDance.Import
             if (!long.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n)) throw Invalid();
             return n;
         }
+        static double Finite(double seconds) {
+            if (double.IsNaN(seconds) || double.IsInfinity(seconds)) throw Invalid();
+            return seconds;
+        }
         static List<Note> ConvertNotes(List<TickNote> notes, SortedDictionary<long,double> tempos, int ppq, long origin)
         {
             if (ppq <= 0 || !tempos.ContainsKey(0)) throw Invalid();
             foreach (var t in tempos) if (t.Key < 0 || t.Value <= 0) throw Invalid();
             var ticks=tempos.Keys.ToArray();var bpms=tempos.Values.ToArray();var times=new double[ticks.Length];
-            for(int i=1;i<ticks.Length;i++)times[i]=times[i-1]+(ticks[i]-ticks[i-1])*60.0/ppq/bpms[i-1];
+            for(int i=1;i<ticks.Length;i++)times[i]=Finite(times[i-1]+(ticks[i]-ticks[i-1])*60.0/ppq/bpms[i-1]);
             double Seconds(long tick) {
                 if (tick < 0) throw Invalid();
                 int i=Array.BinarySearch(ticks,tick);if(i<0)i=~i-1;
-                return times[i]+(tick-ticks[i])*60.0/ppq/bpms[i];
+                return Finite(times[i]+(tick-ticks[i])*60.0/ppq/bpms[i]);
             }
             double offset=Seconds(origin);
             return notes.Select(n => {
                 if (n.Duration <= 0) throw Invalid();
-                return new Note {Start=Seconds(n.Start)-offset,End=Seconds(checked(n.Start+n.Duration))-offset,Lyric=n.Lyric,Phoneme=n.Phoneme};
+                double start=Seconds(n.Start)-offset, end=Seconds(checked(n.Start+n.Duration))-offset;
+                if (end <= start) throw Invalid();
+                return new Note {Start=start,End=end,Lyric=n.Lyric,Phoneme=n.Phoneme};
             }).OrderBy(n=>n.Start).ToList();
         }
         public static List<Note> ReadTssprj(byte[] bytes)
+        {
+            try { return Read(bytes); }
+            catch (OverflowException ex) { throw new InvalidDataException("TSSPRJの時刻が範囲を超えています。", ex); }
+            catch (DecoderFallbackException ex) { throw new InvalidDataException("TSSPRJの文字列が不正です。", ex); }
+        }
+        static List<Note> Read(byte[] bytes)
         {
             var reader=new TreeReader(bytes);
             var root=reader.Read();
@@ -55,7 +67,11 @@ namespace AvaAvaDance.Import
             var song=root.One("Song");
             var tempos=new SortedDictionary<long,double>();
             foreach(var sound in song.One("Tempo").Children.Where(n=>n.Name=="Sound"))
-                tempos[Integer(sound.Value("Clock"))]=Number(sound.Value("Tempo"));
+            {
+                long tick = Integer(sound.Value("Clock"));
+                if (tempos.ContainsKey(tick)) throw Invalid();
+                tempos.Add(tick, Number(sound.Value("Tempo")));
+            }
             var notes=new List<TickNote>();
             foreach(var note in song.One("Score").Children.Where(n=>n.Name=="Note"))
                 notes.Add(new TickNote {Start=Integer(note.Value("Clock")), Duration=Integer(note.Value("Duration")),

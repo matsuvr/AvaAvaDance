@@ -44,7 +44,7 @@ namespace AvaAvaDance
                     string path = Path.Combine(dir, root + ".VSQX"); File.WriteAllText(path, xml);
                     SetFrame(60); int history = undo.Count;
                     Import.PackageFileDialog.AutomationChooser = (title, extensions, saving) => {
-                        Check(extensions == "vsq;vsqx" && !saving, "open filter"); return path;
+                        Check(extensions == "vsq;vsqx;tssprj" && !saving, "open filter"); return path;
                     };
                     try { Check(Execute(Command.LipSync), "menu command"); }
                     finally { Import.PackageFileDialog.AutomationChooser = null; }
@@ -74,6 +74,89 @@ namespace AvaAvaDance
                 foreach (var track in tracks) { lips.Remove(track); actor.modelTracks.Remove(track); }
                 DiscardHistory(undo, t => tracks.Contains(t)); DiscardHistory(redo, t => tracks.Contains(t));
                 SetFrame(0);
+            }
+        }
+        static byte[] TssprjFixture()
+        {
+            using var stream = new MemoryStream();
+            using var writer = new BinaryWriter(stream);
+            void Count(int n) {
+                int width = n > 255 ? 2 : n > 0 ? 1 : 0;
+                writer.Write((byte)width);
+                for (int i = 0; i < width; i++) writer.Write((byte)(n >> (i * 8)));
+            }
+            void Text(string text) { writer.Write(System.Text.Encoding.UTF8.GetBytes(text)); writer.Write((byte)0); }
+            void Node(string name, int attributes) { Text(name); Count(attributes); }
+            void Integer(string name, int value) { Text(name); Count(5); writer.Write((byte)1); writer.Write(value); }
+            void String(string name, string value) {
+                Text(name); Count(System.Text.Encoding.UTF8.GetByteCount(value) + 2); writer.Write((byte)5); Text(value);
+            }
+            Node("StateInformation", 0); Count(1); Node("Song", 0); Count(2);
+            Node("Tempo", 0); Count(2);
+            foreach (int clock in new[] { 0, 960 }) {
+                Node("Sound", 2); Integer("Clock", clock); Integer("Tempo", clock == 0 ? 120 : 60); Count(0);
+            }
+            Node("Score", 0); Count(5);
+            int[] starts = { 480, 1440, 2400, 2880, 3360 };
+            string[] phones = { "k,a", "sh,i", "u", "", "o" };
+            for (int i = 0; i < starts.Length; i++) {
+                Node("Note", i == 3 ? 3 : 4); Integer("Clock", starts[i]); Integer("Duration", i == 0 ? 960 : 480);
+                String("Lyric", "あいうえお"[i].ToString());
+                if (i != 3) String("Phoneme", phones[i]);
+                Count(0);
+            }
+            return stream.ToArray();
+        }
+        void CheckTssprjLipSync(string dir)
+        {
+            void Check(bool ok, string what) { if (!ok) throw new InvalidOperationException("TSSPRJ: " + what); }
+            var lips = morphGroups[1].Tracks;
+            var tracks = new[] { "あ", "IH", "vrc.v_ou", "ee", "o" }
+                .Select(name => new MotionTrack<float>("表情：" + name, 0, Mathf.Lerp, _ => {})).ToArray();
+            lips.InsertRange(0, tracks); actor.modelTracks.AddRange(tracks);
+            bool profile = ribbonProfile;
+            var chooser = Import.PackageFileDialog.AutomationChooser;
+            string path = Path.Combine(dir, "lip.TSSPRJ");
+            byte[] bytes = TssprjFixture();
+            try
+            {
+                foreach (bool moving in new[] { false, true })
+                {
+                    ApplyProfile(moving); File.WriteAllBytes(path, bytes); SetFrame(60);
+                    tracks[0].Write(68, .25f);
+                    int history = undo.Count;
+                    Import.PackageFileDialog.AutomationChooser = (title, extensions, saving) => {
+                        Check(extensions == "vsq;vsqx;tssprj" && !saving, "open filter"); return path;
+                    };
+                    try { Check(Execute(Command.LipSync), "menu command"); }
+                    finally { Import.PackageFileDialog.AutomationChooser = chooser; }
+                    int[] begins = { 68, 90, 120, 135, 150 }, ends = { 90, 105, 135, 150, 165 };
+                    for (int i = 0; i < tracks.Length; i++)
+                        Check(Equals(tracks[i].KeyAt(begins[i]), 1f) && Equals(tracks[i].KeyAt(ends[i]), 0f), "timing/vowel " + i);
+                    Check(undo.Count == history + 1, "single undo transaction");
+                    ApplyHistory(false);
+                    Check(Equals(tracks[0].KeyAt(68), .25f) && tracks[0].KeyAt(90) == null &&
+                        tracks.Skip(1).All(t => t.Frames.Count == 1), "undo restores overwritten key and removes new keys");
+                    ApplyHistory(true); Check(Equals(tracks[0].KeyAt(68), 1f), "redo");
+                    int before = undo.Count, keys = tracks.Sum(t => t.Frames.Count);
+                    File.WriteAllBytes(path, bytes.Take(bytes.Length - 1).ToArray());
+                    try { ImportLipSync(path); throw new Exception("Accepted truncated TSSPRJ"); }
+                    catch (InvalidDataException) {}
+                    Check(undo.Count == before && tracks.Sum(t => t.Frames.Count) == keys, "invalid file is atomic");
+                    File.WriteAllBytes(path, bytes); SetFrame(MaxFrame - 100);
+                    try { ImportLipSync(path); throw new Exception("Accepted out-of-range TSSPRJ"); }
+                    catch (InvalidDataException) {}
+                    Check(undo.Count == before && tracks.Sum(t => t.Frames.Count) == keys, "frame limit after valid notes is atomic");
+                    ApplyHistory(false);
+                }
+                Debug.Log("AVA_TSSPRJ_LIP_SYNC PASS both layouts, menu/filter, vowels, tempo changes, offset, undo/redo and atomic errors");
+            }
+            finally
+            {
+                Import.PackageFileDialog.AutomationChooser = chooser;
+                foreach (var track in tracks) { lips.Remove(track); actor.modelTracks.Remove(track); }
+                DiscardHistory(undo, t => tracks.Contains(t)); DiscardHistory(redo, t => tracks.Contains(t));
+                ApplyProfile(profile); SetFrame(0);
             }
         }
         void CheckMenuCompatibility(string dir)
@@ -131,6 +214,7 @@ namespace AvaAvaDance
             Check(Equals(testLip.KeyAt(0),1f) && Equals(testLip.KeyAt(15),0f),"VSQ lyric timing");
             lips.Remove(testLip);actor.modelTracks.Remove(testLip);DiscardHistory(undo,t=>t==testLip);DiscardHistory(redo,t=>t==testLip);
             CheckVsqxLipSync(dir);
+            CheckTssprjLipSync(dir);
             var pose=actor.bones[0].Track.Current;pose.Rotation=Quaternion.Euler(12,15,18);pose.Position=new Vector3(.1f,.2f,.3f);pose.PhysicsOff=true;
             actor.bones[0].Track.Preview(pose);SaveVpd(vpd);actor.bones[0].Track.Preview(BonePose.Rest);LoadVpd(vpd);
             Check(Quaternion.Angle(actor.bones[0].Track.Current.Rotation,pose.Rotation)<.1f && Vector3.Distance(actor.bones[0].Track.Current.Position,pose.Position)<.0001f,"VPD");
