@@ -138,3 +138,16 @@ Windows版のビルドは実行ファイルと同じフォルダーに `LICENSE`
 ## lilToon・追加シェーダー
 
 lilToonを使う場合は、公式VPM配布物から別のUnityプロジェクトでパックを作成します。出力フォルダーには `.avadshader` と、lilToon、VRC Light Volumesなどの権利表示が入ります。[外部パックの作成手順](Docs/shader-packs.md)
+
+## 歌声プロジェクトから口パク
+
+「表情操作 → VSQ / VSQX / TSSPRJから口の動きを生成」で、選択中モデルの母音表情にキーを追加します。現在フレームを開始位置とし、一度のUndoで戻せます。既存VSQに加え、VOCALOID 3/4のVSQX、VoiSona Songの単一トラック `.tssprj` に対応します（拡張子は `.tssproj` ではありません）。VSQXは最初の歌詞付きボーカルトラックを使用します。
+
+歌詞・発音記号の母音と音符の開始／終了、テンポ変化を読みます。音声・声質・ピッチ調声・合成後の子音／母音のタイミング補正は取り込みません。音符ベースの口パクなので、音声に厳密に合わせる用途では手修正が必要です。TSSPRJの先頭休符は保持し、VSQXのプリメジャーは取り除きます。プリメジャー内で拍子が変わるVSQXは誤った時刻で取り込まないようエラーにします。VoiSonaの全体プロジェクト `.tssln` とTalk形式は対象外です。
+
+パーサーの単体・境界テスト：`dotnet run --project Tests/SongLipHarness/SongLipHarness.csproj`。このテストはUnityの画面表示／Windowsファイルダイアログの実機検証を代替しません。
+
+形式の参考：
+- [VoiSona公式：ファイルを開く・保存する](https://manual.voisona.com/ja/song/pc/2b6e9bc7efb1807daf26f729d3dac3a9)
+- [LibreSVIPのVoiSona形式実装](https://github.com/SoulMelody/LibreSVIP/tree/0ab7819cd08416ac1a990e2d44877e224535f1df/libresvip/plugins/tssln) およびJUCE ValueTreeの記述を参照。MIT、[権利表示](ThirdPartyNotices/LibreSVIP-MIT.txt)。ライブラリそのものは組み込みません。
+- テスト用 `nodo-template.tssprj` は [NodoAme.CoreのTemplate.tssprj](https://github.com/InuInu2022/NodoAme.Core/blob/3c8018f1ee6fb0b622625db437bfd78cc66e5247/template/Template.tssprj) の未改変コピー（MIT、[権利表示](ThirdPartyNotices/NodoAme-MIT.txt)）。1音の公開テンプレートで確認しており、最新VoiSonaのあらゆる調声データを検証したものではありません。音源・ボイスライブラリ・合成エンジンは含めません。

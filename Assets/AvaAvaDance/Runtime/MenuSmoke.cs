@@ -58,7 +58,7 @@ namespace AvaAvaDance
             // Exercise a VSQ text track with note lyrics, plus tempo meta data.
             var lips=morphGroups[1].Tracks;
             var testLip=new MotionTrack<float>("表情：あ",0,Mathf.Lerp,_=>{});lips.Add(testLip);actor.modelTracks.Add(testLip);
-            var vsq=Path.Combine(dir,"lip.vsq");File.WriteAllBytes(vsq,VsqFixture());SetFrame(0);ImportVsq(vsq);
+            var vsq=Path.Combine(dir,"lip.vsq");File.WriteAllBytes(vsq,VsqFixture());SetFrame(0);ImportSongLipSync(vsq);
             Check(Equals(testLip.KeyAt(0),1f) && Equals(testLip.KeyAt(15),0f),"VSQ lyric timing");
             lips.Remove(testLip);actor.modelTracks.Remove(testLip);DiscardHistory(undo,t=>t==testLip);DiscardHistory(redo,t=>t==testLip);
             var pose=actor.bones[0].Track.Current;pose.Rotation=Quaternion.Euler(12,15,18);pose.Position=new Vector3(.1f,.2f,.3f);pose.PhysicsOff=true;

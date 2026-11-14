@@ -9,6 +9,31 @@ namespace AvaAvaDance
 {
     public sealed partial class DanceApp
     {
+        void ImportSongLipSync(string path)
+        {
+            string extension=Path.GetExtension(path).ToLowerInvariant();
+            if(extension==".vsq") {ImportVsq(path);return;}
+            var bytes=ReadMmdFile(path);
+            var notes=extension==".tssprj"?Import.SongLipReader.ReadTssprj(bytes):
+                extension==".vsqx"?Import.SongLipReader.ReadVsqx(bytes):throw new InvalidDataException("VSQ / VSQX / TSSPRJを選択してください。");
+            var edits=new Dictionary<(MotionTrack,int),float>();
+            foreach(var note in notes) {
+                string vowel=VsqVowel(note.Phoneme,note.Lyric);
+                if(vowel==null)continue;
+                string latin=new[]{"a","i","u","e","o"}["あいうえお".IndexOf(vowel,StringComparison.Ordinal)];
+                string vrc="vrc.v_"+(vowel=="あ"?"aa":vowel=="い"?"ih":vowel=="う"?"ou":vowel=="え"?"e":"oh");
+                var track=morphGroups[1].Tracks.Find(m=>new[]{vowel,latin,vrc}.Contains(MorphName(m),StringComparer.OrdinalIgnoreCase));
+                if(track==null)continue;
+                double first=frame+Math.Round(note.Start*30),last=frame+Math.Round(note.End*30);
+                if(last<0)continue;
+                if(double.IsNaN(first)||double.IsNaN(last)||first>MaxFrame||last>MaxFrame)throw new InvalidDataException("歌声プロジェクトがフレーム上限を超えています。");
+                int begin=(int)Math.Max(0,first),finish=(int)Math.Max(begin+1,last);
+                if(finish>MaxFrame)throw new InvalidDataException("歌声プロジェクトがフレーム上限を超えています。");
+                edits[(track,Math.Max(0,begin-1))]=0;edits[(track,begin)]=1;edits[(track,finish)]=0;
+            }
+            if(edits.Count==0)throw new InvalidDataException("歌詞に対応するリップ表情がありません。");
+            CommitKeys(edits.Select(k=>new KeyChange {Track=k.Key.Item1,Frame=k.Key.Item2,After=k.Value}));
+        }
         // VSQ stores VOCALOID's INI sections in numbered DM text events in an SMF file.
         void ImportVsq(string path)
         {
