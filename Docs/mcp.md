@@ -25,7 +25,7 @@ claude mcp add --scope local --transport stdio avaavadance -- uv run --script "D
 | `ava_transport`、`ava_select`、`ava_order` | フレーム移動、再生・停止、Undo/Redo、モデル・トラック選択、描画順・物理計算順の変更 |
 | `ava_ui`、`ava_control`、`ava_input` | ボタン、ドロップダウン、数値欄、確認画面、リボン、タイムライン、ビューポートを操作。フローティングパネルも対象 |
 | `ava_preview` | `surface` に `camera`、`workspace`、または開いている `operations`、`timeline`、`audio` を指定して PNG を取得 |
-| `ava_native_ui`、`ava_native_control`、`ava_native_input`、`ava_native_image` | VMD サイジングやエフェクト設定などの Windows ウィンドウを列挙し、項目の読取、選択、入力、クリック、画像取得 |
+| `ava_native_ui`、`ava_native_control`、`ava_native_input`、`ava_native_image` | エフェクト設定などの Windows ウィンドウを列挙し、項目の読取、選択、入力、クリック、画像取得 |
 
 `ava_state(section="project")` はプロジェクトの保存形式に沿った JSON を返します。モデルや音声のバイナリを含めて復元したいときは `core.SaveAs` で `.avadance` を保存します。大きい作品は `pointer="/sceneMotion/tracks"` のように JSON Pointer で一部分を取得できます。配列は `offset` と `limit` で分割でき、`nextOffset` があれば次の呼び出しの `offset` に渡します。
 
@@ -47,7 +47,7 @@ edits = [{Owner: "scene", Track: トラックID, Revision: revision,
 
 **カスタム描画部分を操作する。** `ava_ui(all_elements=true)` で描画領域の ID と bounds を取得します。`ava_input` の座標は対象要素の左上からのパネル単位です。ドラッグは `down → drag → up` の順に送ります。操作後は `ava_preview(surface="workspace")` で画面を確認できます。Editor で画面全体を取得するときは Game ビューが開きます。
 
-**拡張の別窓を操作する。** 例えば `ava_command(id="ava.vmd-sizing.open")` の後に `ava_native_ui()` を呼びます。返された `window` を指定して再度呼ぶとコントロール ID、現在値、対応する操作が返ります。`ava_native_control` の `set` で値を変更し、同じウィンドウを再取得すると結果を確認できます。
+**拡張の別窓を操作する。** 例えば `ava_command(id="ava.mme.assign")` の後に `ava_native_ui()` を呼びます。返された `window` を指定して再度呼ぶとコントロール ID、現在値、対応する操作が返ります。`ava_native_control` で項目を操作し、同じウィンドウを再取得すると結果を確認できます。
 
 ## ダイアログとファイル
 

@@ -206,6 +206,12 @@ namespace AvaAvaDance
         }
         VmdSidecar sceneSidecar=new VmdSidecar();
 
+        void ImportReferenceMotionFile(string path)
+        {
+            if(string.Equals(Path.GetExtension(path),".vmd",StringComparison.OrdinalIgnoreCase))LoadVmd(path,frame);
+            else ImportMotionFile(path);
+        }
+
         void LoadVmd(string path,int startFrame=0)
         {
             var document=VmdDocument.Read(path);

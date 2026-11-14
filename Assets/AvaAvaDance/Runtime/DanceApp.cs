@@ -48,7 +48,18 @@ namespace AvaAvaDance
             var scroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
             scroll.style.flexGrow = 1;
             root.Add(scroll);
-            var workspace = Box(scroll, "workspace", "workspace");
+            var workspace = scroll.contentContainer;
+            workspace.name = "workspace";
+            workspace.AddToClassList("workspace");
+            workspace.style.flexGrow = 0;
+            void ResizeWorkspace()
+            {
+                float horizontal = scroll.horizontalScroller.resolvedStyle.display == DisplayStyle.None ? 0 : scroll.horizontalScroller.layout.height;
+                workspace.style.minHeight = Mathf.Max(0, scroll.contentRect.height - horizontal);
+            }
+            scroll.RegisterCallback<GeometryChangedEvent>(_ => ResizeWorkspace());
+            scroll.horizontalScroller.RegisterCallback<GeometryChangedEvent>(_ => ResizeWorkspace());
+            ResizeWorkspace();
             workspace.focusable = true;
             BuildProfileBar(workspace);
             var menu = Box(workspace, "menu", "row", "menu");

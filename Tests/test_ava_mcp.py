@@ -60,7 +60,9 @@ async def exercise(session, pid, directory):
         ctypes.windll.user32.ShowWindow(hwnd_arg, 9)  # SW_RESTORE
     menus = (await call("commands", limit=256))["items"]
     assert any(m["id"] == "core.LoadPose" and not m["enabled"] for m in menus)
-    ext = "ava.vmd-sizing.open"
+    assert not any(m["id"].startswith("ava.vmd-sizing.") for m in menus)
+    assert all(p["id"] != "ava.vmd-sizing" for p in (await call("state", section="extensions"))["items"])
+    ext = "ava.mme.assign"
     assert any(m["id"] == ext for m in menus)
     print(f"Discovered {len(menus)} menu commands and {len((await session.list_tools()).tools)} MCP tools", flush=True)
 
@@ -164,15 +166,16 @@ async def exercise(session, pid, directory):
 
     hwnd = (await until(window, "No native extension window"))["window"]
     controls = (await call("native_ui", window=hwnd, limit=128))["items"]
-    editor = next(e for e in controls if e["type"] == "Edit" and "set" in e["actions"])
-    await call("native_control", window=hwnd, control=editor["id"], action="set", value="MCP test")
-    controls = (await call("native_ui", window=hwnd, limit=128))["items"]
-    assert next(e for e in controls if e["id"] == editor["id"])["value"] == "MCP test"
-    await call("native_input", window=hwnd, control=editor["id"], kind="text", text="星")
-    controls = (await call("native_ui", window=hwnd, limit=128))["items"]
-    assert "星" in next(e for e in controls if e["id"] == editor["id"])["value"]
+    cancel = next(e for e in controls if e["name"] == "キャンセル" and e["enabled"] and "click" in e["actions"])
+    await call("native_input", window=hwnd, control=cancel["id"], kind="keyDown", virtual_key=9)
+    await call("native_input", window=hwnd, control=cancel["id"], kind="keyUp", virtual_key=9)
     assert (await call("native_image", window=hwnd)).startswith(b"\x89PNG")
-    await call("native_control", window=hwnd, control="root", action="close")
+    await call("native_control", window=hwnd, control=cancel["id"], action="click")
+
+    async def closed():
+        return not any(w["window"] == hwnd for w in (await call("native_ui"))["windows"])
+
+    await until(closed, "Native extension window did not close")
     await call("command", id="core.Quit")
     print("Passed native extension control, screenshot and quit", flush=True)
 

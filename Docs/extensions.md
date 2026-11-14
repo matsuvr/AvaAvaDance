@@ -21,11 +21,11 @@ Copy-Item Examples/MaterialList/bin/Release/netstandard2.1/MaterialLabels.dll "$
 
 ## エフェクトの制御モデル
 
-`.avaeffect` は制御ボーンとモーフを持つモデルです。`coordinateSpace` に `"motion"` を指定すると、床面を原点として VMD の位置と向きを使います。ボーンの `position` は親からの距離をメートルで指定します。
+`.avaeffect` は制御ボーンとモーフを持つモデルです。`coordinateSpace` に `"motion"` を指定すると、床面を原点としてモーショントラックの位置と向きを使います。ボーンの `position` は親からの距離をメートルで指定します。
 
 ## 保存データ
 
-`.avadance` は ZIP 形式です。`project.json` の `format` は `AvaAvaDance project 2`、`schemaVersion` は `2` です。モデル、アクセサリ、トラックには個別の ID があり、描画順と物理計算順はモデル ID の列で記録します。`.avamotion` は `AvaAvaDance motion 2` の JSON です。トラックはフレームと型別の値を持ち、レイヤー、クリップ、補間曲線、VMD の元名を一緒に保存できます。本体はバージョン 1 の作品とモーションも読み込みます。
+`.avadance` は ZIP 形式です。`project.json` の `format` は `AvaAvaDance project 2`、`schemaVersion` は `2` です。モデル、アクセサリ、トラックには個別の ID があり、描画順と物理計算順はモデル ID の列で記録します。`.avamotion` は `AvaAvaDance motion 2` の JSON です。トラックはフレームと型別の値を持ち、レイヤー、クリップ、補間曲線を一緒に保存できます。本体はバージョン 1 の作品とモーションも読み込みます。
 
 クリップの `source` は同じレイヤーのモーションソース ID です。空の場合はレイヤー自身のキーを使います。`start` は親の時間軸での配置位置、`sourceStart` と `sourceEnd` はソース側の範囲です。`rate` は親の1フレームで進むソースのフレーム数で、画面の時間スケールの逆数です。`cycles` が正のときは再生回数から配置長を求め、ゼロのときは `length` を使います。`infinite` を有効にしたクリップは指定した範囲を繰り返します。
 

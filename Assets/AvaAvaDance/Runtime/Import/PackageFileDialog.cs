@@ -56,7 +56,7 @@ namespace AvaAvaDance.Import
                 string folderKey = "FileFolder." + extensions[0];
                 string previous = WorkspacePreferences.GetString(folderKey, "");
                 string folder = extensions[0] switch {
-                    "x" => "Accessory", "vmd" => "Motion", "avamotion" => "Motion", "vpd" => "Pose", "vsq" => "Vsq", "wav" => "Wave",
+                    "x" => "Accessory", "vrma" => "Motion", "avamotion" => "Motion", "vpd" => "Pose", "vsq" => "Vsq", "wav" => "Wave",
                     "bmp" => "BackGround", "unitypackage" => "Model", _ => ""
                 };
                 string baseDir = System.IO.Path.GetDirectoryName(Application.dataPath);

@@ -27,7 +27,7 @@ namespace AvaAvaDance
             }
             Execute(Command.PhysicsOff);
             int history=undo.Count;
-            ImportMotionFile(motionPath);
+            ImportReferenceMotionFile(motionPath);
             if (undo.Count!=history+1) throw new InvalidDataException(status.text);
             int end=actor.modelTracks.Max(t=>t.LastFrame);
             var facing=Quaternion.Inverse(actor.humanForward);

@@ -5,11 +5,22 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEngine;
+using AvaAvaDance.Import;
 
 namespace AvaAvaDance
 {
     public sealed partial class DanceApp
     {
+        void ImportLipSync(string path)
+        {
+            if (!Path.GetExtension(path).Equals(".vsqx", StringComparison.OrdinalIgnoreCase)) { ImportVsq(path); return; }
+            var notes = VsqxDocument.Parse(ReadMmdFile(path));
+            var edits = new Dictionary<(MotionTrack, int), float>();
+            foreach (var note in notes)
+                AddLipKeys(edits, note.Phonemes, note.Lyric, note.BeginSeconds, note.EndSeconds, "VSQX");
+            CommitLipKeys(edits);
+        }
+
         // VSQ stores VOCALOID's INI sections in numbered DM text events in an SMF file.
         void ImportVsq(string path)
         {
@@ -81,26 +92,45 @@ namespace AvaAvaDance
                 foreach(string id in kv.Value.Split(',')) {
                     if(!sections.TryGetValue(id,out var note) || !note.TryGetValue("LyricHandle",out var handle) ||
                        !note.TryGetValue("Length",out var duration) || !sections.TryGetValue(handle,out var lyric) || !lyric.TryGetValue("L0",out var l0))continue;
-                    var words=l0.Split(','); string vowel=VsqVowel(words.Length>1?words[1]:"",words[0]);
-                    if(vowel==null)continue;
-                    string[] names={vowel, new[]{"a","i","u","e","o"}["あいうえお".IndexOf(vowel,StringComparison.Ordinal)]};
-                    var track=morphGroups[1].Tracks.Find(m=>names.Contains(MorphName(m),StringComparer.OrdinalIgnoreCase) ||
-                        MorphName(m).Equals("vrc.v_"+(vowel=="あ"?"aa":vowel=="い"?"ih":vowel=="う"?"ou":vowel=="え"?"e":"oh"),StringComparison.OrdinalIgnoreCase));
-                    if(track==null)continue;
-                    int begin=frame+Mathf.RoundToInt((float)(Seconds(tick)-origin)*30);
-                    int finish=frame+Mathf.RoundToInt((float)(Seconds(checked(tick+int.Parse(duration)))-origin)*30);
-                    if(finish<0)continue;
-                    begin=Math.Max(0,begin);finish=Math.Max(begin+1,finish);
-                    if(finish>MaxFrame)throw new InvalidDataException("VSQがフレーム上限を超えています。");
-                    edits[(track,Math.Max(0,begin-1))]=0;edits[(track,begin)]=1;edits[(track,finish)]=0;
+                    var words=l0.Split(',');
+                    AddLipKeys(edits, words.Length>1?words[1]:"", words[0], Seconds(tick)-origin,
+                        Seconds(checked(tick+int.Parse(duration)))-origin, "VSQ");
                 }
             }
+            CommitLipKeys(edits);
+        }
+
+        void AddLipKeys(Dictionary<(MotionTrack,int),float> edits, string phones, string lyric,
+            double beginSeconds, double endSeconds, string format)
+        {
+            string vowel = VsqVowel(phones, lyric);
+            if (vowel == null) return;
+            int index = "あいうえお".IndexOf(vowel, StringComparison.Ordinal);
+            string viseme = new[] { "aa", "ih", "ou", "ee", "oh" }[index];
+            string[] names = { vowel, new[] { "a", "i", "u", "e", "o" }[index], viseme,
+                "vrc.v_" + (index == 3 ? "e" : viseme) };
+            var track = morphGroups[1].Tracks.Find(m => names.Contains(MorphName(m), StringComparer.OrdinalIgnoreCase));
+            if (track == null) return;
+            double start = frame + Math.Round(beginSeconds * 30, MidpointRounding.ToEven);
+            double end = frame + Math.Round(endSeconds * 30, MidpointRounding.ToEven);
+            if (end <= 0) return;
+            if (start > MaxFrame || end > MaxFrame || double.IsNaN(start) || double.IsNaN(end))
+                throw new InvalidDataException(format + "がフレーム上限を超えています。");
+            int begin = (int)Math.Max(0, start), finish = Math.Max(begin + 1, (int)end);
+            if (finish > MaxFrame) throw new InvalidDataException(format + "がフレーム上限を超えています。");
+            edits[(track, Math.Max(0, begin - 1))] = 0;
+            edits[(track, begin)] = 1;
+            edits[(track, finish)] = 0;
+        }
+
+        void CommitLipKeys(Dictionary<(MotionTrack,int),float> edits)
+        {
             if(edits.Count==0)throw new InvalidDataException("歌詞に対応するリップ表情がありません。");
             CommitKeys(edits.Select(k=>new KeyChange {Track=k.Key.Item1, Frame=k.Key.Item2, After=k.Value}));
         }
         static string VsqVowel(string phones,string lyric)
         {
-            string token=phones.Trim(' ','"').Split(' ').LastOrDefault();
+            string token=phones.Trim(' ','"').Split((char[])null,StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
             if(token!=null && token.Length>0) {
                 int i="aiueo".IndexOf(char.ToLowerInvariant(token[0]));
                 if(i>=0)return "あいうえお"[i].ToString();

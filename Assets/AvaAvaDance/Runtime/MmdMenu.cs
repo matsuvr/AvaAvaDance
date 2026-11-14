@@ -219,7 +219,7 @@ namespace AvaAvaDance
                 new Entry(Command.RegisterMorphs, "全表情にキーを登録 (H)", "Key all expressions (H)"),
                 new Entry(Command.ResetMorphs, "表情の値をリセット", "Reset expression weights"),
                 Separator,
-                new Entry(Command.LipSync, "VSQから口の動きを生成", "Generate lip sync from VSQ"),
+                new Entry(Command.LipSync, "VSQ / VSQXから口の動きを生成", "Generate lip sync from VSQ / VSQX"),
                 new Entry(Command.ShiftLips, "リップのキーを移動", "Shift lip keys"),
                 new Entry(Command.Blink, "まばたきのキーを生成", "Generate blink keys"),
                 Separator,

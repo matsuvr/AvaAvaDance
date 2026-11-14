@@ -16,6 +16,7 @@ namespace AvaAvaDance
         [Serializable] sealed class PluginManifest
         {
             public int manifestVersion, stateSchema;
+            public bool developmentOnly;
             public string id, version,displayName;
             public SdkVersion sdk;
             public EntryPoint entry;
@@ -191,6 +192,7 @@ namespace AvaAvaDance
                     var m=JsonUtility.FromJson<PluginManifest>(File.ReadAllText(Path.Combine(dir,"plugin.json")));
                     if(m==null || m.manifestVersion!=1 || m.sdk?.major!=1 || m.sdk.minMinor>0 || m.entry==null ||
                         !Regex.IsMatch(m.id??"","^[a-z0-9][a-z0-9.-]*$")) throw new InvalidDataException("拡張形式またはSDK版が不正です。");
+                    if(m.developmentOnly && !Application.isEditor && !Debug.isDebugBuild) continue;
                     packages.Add(new Extension {app=this,manifest=m,PackageDirectory=dir,
                         SettingsDirectory=Path.Combine(WorkspacePreferences.ExtensionRoot,"Extensions",m.id)});
                 } catch(Exception ex) {Debug.LogWarning(dir+": "+ex.Message);}

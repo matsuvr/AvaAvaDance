@@ -41,7 +41,7 @@ VRM 1.0 の MToon・Unlit・PBR は材質ごとに読み分けます。モデル
 - 「編集」の空フレーム挿入・列フレーム削除は、ボーン／表情またはカメラ／照明を個別にずらします。挿入／削除は `I`・`K` と `U`・`J`、全表情登録は `H` です。
 - **Humanoid モーションを読み込む**には、モデル編で開始フレームに移動し、「ファイル → モーションデータ読込」から `.vrma`、`.bvh`、`.fbx`、Unity の `.anim` を選びます。腰移動と関節回転を選択モデルの体格に合わせ、30 fps の編集キーに変換します。たとえば42フレームで1秒のモーションを開くと、42～72フレームを編集できます。足の動きに関係するIKは「表示・IK」キーで自動的にOFFになります。VRMAでは対応する表情と視線も取り込みます。
 - **モーションを保存する**には「ファイル → モーションデータ保存」で `.avamotion` を選びます。同じモデルに再読込でき、元のモーションファイルは不要です。モデルやカメラ、音声も含めたシーン全体は `.avadance` で保存できます。
-- 「モーションデータ読込」はVMDにも対応します。モデル編では名前が一致するボーン・表情・表示／IK、カメラ編ではカメラ・照明・セルフ影のキーを現在フレームから読み込みます。「ポーズデータ読込／保存」ではVPDを扱います。
+- 「ポーズデータ読込／保存」ではVPDを扱います。
 - ファイル、編集、表示、背景、表情、物理演算、ヘルプの各メニューは、順に `Alt+F/D/V/B/M/P/H` で開きます。括弧内のキーで項目を選択できます。「ヘルプ → モデル拡張」にはモデル別の設定をまとめています。「ヘルプ → English Mode」でメニューを英語に切り替え、各トラックに設定した英語名を表示できます。
 - `P` で再生／停止、`Ctrl+Z/X` で元に戻す／やり直し、`Ctrl+←/→` で前後の登録キーに移動します。`Tab`／`Shift+Tab` はカメラ編と各モデルを順送り／逆送り、`Z/X/C` は移動／回転／選択、`L` は座標系、`G` は「セット」したフレームへの移動です。
 - モデルを追加して「背景 → モデル描画順／モデル計算順」から順番を設定できます。アクセサリ操作でDirectXの `.x` または `.vac` を開き、親ボーン・位置・角度・サイズ・透明度を登録できます。X読込にはWindowsの `d3dx9_43.dll` が必要です。
@@ -65,8 +65,6 @@ Windows 版と Unity Editor の Play Mode は MCP 接続に対応しています
 
 ## 拡張機能
 
-「プラグイン → VMDサイジング」で、モーション、作成元モデル、変換先モデルを指定して VMD を書き出せます。「CSV」タブは VMD をボーン、モーフ、カメラに分けます。「VMD」タブはボーンとモーフを一つのモデル VMD に、カメラを別の VMD に書き出します。
-
 「AvaAvaEffect → エフェクト割当」で、モデルまたは展開した材質に FX を割り当てます。「更新」を押すと現在の割当がキャンセル時の復帰先になります。FX ソースは設定とともに作品に保存されます。Windows 版を移動するときは、同梱の `Extensions` フォルダーも一緒にコピーしてください。[拡張の作成](Docs/extensions.md)
 
 ## 直接読込の対応範囲
@@ -81,7 +79,7 @@ VRMA 1.0 は先頭のアニメーション、FBX は先頭のテイクを読み�
 
 表情の4分類はFBXのチャンネル名から判定し、その他の名前は「その他」に表示します。同名の表情が複数メッシュにあれば同時に動かします。FBXの形状キーは1メッシュ512チャンネル、1チャンネル128段階、モデル全体で展開頂点×段階の合計6400万を上限とし、省略があれば読込結果に表示します。
 
-**unitypackage の対応範囲** は、選択したFBXのメッシュを直接参照するUnityテキストprefabです。VMD／VPDは名前が一致するトラックに読み込みます。プロジェクトは `.avadance` 形式で保存します。
+**unitypackage の対応範囲** は、選択したFBXのメッシュを直接参照するUnityテキストprefabです。VPDは名前が一致するトラックに読み込みます。プロジェクトは `.avadance` 形式で保存します。
 
 ## 読み込むデータと利用条件
 
@@ -111,11 +109,14 @@ Unity.exe -batchmode -quit -projectPath <repo> -executeMethod AvaAvaDance.Editor
 
 ## 検証手順
 
+VSQ / VSQXからのリップシンク生成の操作・対応範囲は[こちら](Docs/vsqx.md)を参照してください。
+
 ソースに含まれる三角形のFBXと、スクリプトで生成するモデル・音声を使用します。以下のコマンドはリポジトリのルートから実行します。
 
 ```powershell
 dotnet run --project Tests/ReaderHarness/ReaderHarness.csproj
 dotnet run --project Tests/MaterialHarness/MaterialHarness.csproj
+dotnet run --project Tests/VsqxHarness/VsqxHarness.csproj
 powershell -File Native/build.ps1
 powershell -File Native/test.ps1
 python Native/test_bullet.py
@@ -141,7 +142,6 @@ Builds/Windows/AvaAvaDance.exe -batchmode -avaWorkspaceSmoke -avaProfileOutputSm
 Builds/Windows/AvaAvaDance.exe -batchmode -avaExtensionSmoke -avaSmokePackage Tests/triangle.unitypackage -avaSmokeOutput Builds/Checks/Host
 Builds/Windows/AvaAvaDance.exe -avaExtensionUiSmoke -avaSmokeOutput Builds/Checks/Windows
 Builds/Windows/AvaAvaDance.exe -batchmode -avaEffectSmoke Builds/ExtensionFixtures/effect.json -avaSmokeOutput Builds/Checks/Effects
-Builds/Windows/AvaAvaDance.exe -batchmode -avaSizingSmoke Builds/ExtensionFixtures/sizing.json -avaSmokeOutput Builds/Checks/Sizing
 ```
 
 透明材質の画面参照を検査するには、Unity のバッチ実行で `AvaAvaDance.Editor.ShaderIntegrationBuild.SurfaceFixture` を指定してテスト用パックを書き出し、プレイヤーに次の引数を渡します。
@@ -150,7 +150,7 @@ Builds/Windows/AvaAvaDance.exe -batchmode -avaSizingSmoke Builds/ExtensionFixtur
 Builds/Windows/AvaAvaDance.exe -batchmode -avaGrabSmoke -avaShaderPack Builds/GrabFixture.avadshader -avaSmokePackage Tests/triangle.unitypackage -avaSmokeOutput Builds/Checks/Grab
 ```
 
-メニューの試験は、上のWindowsプレイヤーを `-avaMenuSmoke`、`-avaSmokePackage Tests/triangle.unitypackage`、`-avaSmokeWav Builds/ProductionTest/beat.wav`、`-avaSmokeOutput <出力先>` で起動します。アクセスキー、モデル切替、VSQ、VPD、VMD、X、複数モデルのプロジェクト再読込、AVI出力を検査します。
+メニューの試験は、上のWindowsプレイヤーを `-avaMenuSmoke`、`-avaSmokePackage Tests/triangle.unitypackage`、`-avaSmokeWav Builds/ProductionTest/beat.wav`、`-avaSmokeOutput <出力先>` で起動します。アクセスキー、モデル切替、VSQ、VPD、X、複数モデルのプロジェクト再読込、AVI出力を検査します。
 
 VRMとVRMAのテストには、頭・腰・足IK・まばたき・視線を持つVRM 0.xと1.0を各1体使います。次のテストはボーンの基準回転、腰移動の体格補正、補間、表情・視線、Undo/Redo、プロジェクト復元と、編集済みVRMAを別の開始フレームに再読込した結果を検査します。
 

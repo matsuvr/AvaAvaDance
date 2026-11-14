@@ -23,7 +23,7 @@ namespace AvaAvaDance
             Bind(Command.ExportImage, () => FileAction("画像ファイルに出力", DirectXImage.Extensions, true, ExportImage));
             Bind(Command.LoadPose, () => FileAction("ポーズデータ読込", "vpd", false, LoadVpd), ModelBones);
             Bind(Command.SavePose, () => FileAction("ポーズデータ保存", "vpd", true, SaveVpd), ModelBones);
-            Bind(Command.LoadMotion, () => FileAction("モーションデータ読込", "vmd;vrma;bvh;fbx;anim;avamotion", false, ImportMotionFile));
+            Bind(Command.LoadMotion, () => FileAction("モーションデータ読込", "vrma;bvh;fbx;anim;avamotion", false, ImportMotionFile));
             Bind(Command.SaveMotion, () => FileAction("モーションデータ保存", "avamotion", true, SaveMotion));
             Bind(Command.LoadAvaMotion, () => FileAction("AvaAvaDanceモーション読込", "avamotion", false, LoadMotion));
             Bind(Command.SaveAvaMotion, () => FileAction("AvaAvaDanceモーション保存", "avamotion", true, SaveMotion));
@@ -45,7 +45,6 @@ namespace AvaAvaDance
                 case ".vrma": LoadVrma(path); break;
                 case ".bvh": case ".fbx": case ".anim": LoadHumanoidMotion(path); break;
                 case ".avamotion": LoadMotion(path); break;
-                case ".vmd": LoadVmd(path, frame); break;
                 default: throw new System.IO.InvalidDataException("対応するモーションファイルを選択してください。");
             }
         }
@@ -83,7 +82,7 @@ namespace AvaAvaDance
             Bind(Command.DeleteBrows, () => DeleteMorphGroup(2), HasMorphs);
             Bind(Command.ShiftLips, ShiftLipFrames, () => modelMode && morphGroups[1].Tracks.Count > 0);
             Bind(Command.Blink, RandomBlink, () => modelMode && BlinkTrack() != null);
-            Bind(Command.LipSync, () => FileAction("vsqによるリップシンク", "vsq", false, ImportVsq),
+            Bind(Command.LipSync, () => FileAction("VSQ / VSQXによるリップシンク", "vsq;vsqx", false, ImportLipSync),
                 () => modelMode && morphGroups[1].Tracks.Count > 0);
             Bind(Command.ResetMorphs, () => {
                 StopPlayback(); foreach (var t in actor.modelTracks.OfType<MotionTrack<float>>()) t.Preview(0); SyncControls();

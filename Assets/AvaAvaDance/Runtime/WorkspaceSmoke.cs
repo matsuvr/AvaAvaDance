@@ -8,6 +8,102 @@ namespace AvaAvaDance
 {
     public sealed partial class DanceApp
     {
+        System.Collections.IEnumerator CheckWorkspaceLayout(string directory,Action<string> complete)
+        {
+            bool priorProfile=ribbonProfile,priorMode=modelMode;
+            float priorScale=panel.scale;
+            var priorTarget=panel.targetTexture;
+            var scroll=MenuRoot.Q<ScrollView>();
+            var priorOffset=scroll.scrollOffset;
+            var report=new System.Text.StringBuilder();
+            string error=null;
+            int cases=0;
+            try
+            {
+                foreach(var size in new[]{(1280,900,1f),(1920,1080,1.5f),(2160,1420,1.5f),(2100,700,1f),
+                    (900,1400,1f),(900,900,1f),(640,480,1f),(1280,900,2f),(1024,720,1f),(1280,900,1f)})
+                {
+                    var target=new RenderTexture(size.Item1,size.Item2,24,RenderTextureFormat.ARGB32);
+                    target.Create();panel.targetTexture=target;panel.scale=size.Item3;
+                    try
+                    {
+                        foreach(var mode in new[]{(false,false),(false,true),(true,false),(true,true),(false,false),(false,true)})
+                        {
+                            bool moving=mode.Item1,model=mode.Item2;
+                            ApplyProfile(moving);ChangeMode(model);
+                            for(int i=0;i<6;i++)yield return null;
+                            for(int i=0;i<6;i++){scroll.verticalScroller.value=scroll.verticalScroller.highValue;yield return null;}
+                            yield return new WaitForEndOfFrame();
+                            try
+                            {
+                                void Check(bool pass,string message){if(!pass)throw new InvalidOperationException(message);}
+                                var area=sharedBottom.worldBound;
+                                var root=MenuRoot.worldBound;
+                                float horizontal=scroll.horizontalScroller.resolvedStyle.display==DisplayStyle.None?0:scroll.horizontalScroller.layout.height;
+                                Check(Mathf.Abs(root.width-size.Item1/size.Item3)<1 && Mathf.Abs(root.height-size.Item2/size.Item3)<1,"Unexpected panel size: "+root+" expected="+size);
+                                Check(Mathf.Abs(scroll.worldBound.yMax-root.yMax)<1,"Scroll view does not fill window height");
+                                Check(Mathf.Abs(scroll.contentViewport.worldBound.yMax+horizontal-root.yMax)<1,"Content viewport leaves unused window space");
+                                Check(MenuRoot.Q("workspace").worldBound.width>=scroll.contentViewport.worldBound.width-.5f,"Workspace does not fill view width");
+                                Check(sharedBottom.parent==MenuRoot.Q(moving?"workspace":"right"),"Bottom panel parent");
+                                Check(area.height>0 && area.yMax<=status.worldBound.yMin+.5f,"Bottom panel overlaps status");
+                                var main=MenuRoot.Q("main").worldBound;
+                                var transform=MenuRoot.Q("transform-bar").worldBound;
+                                Check(Mathf.Abs(transform.height-32)<.5f,"Transform bar was compressed");
+                                Check(viewport.worldBound.yMax<=transform.yMin+.5f,"Viewport overlaps transform bar");
+                                Check(transform.yMax<=(moving?main.yMax:area.yMin)+.5f,"Transform bar overlaps bottom controls");
+                                Check(main.yMax<=(moving?transport.worldBound.yMin:status.worldBound.yMin)+.5f,"Main area overlaps footer controls");
+                                Check(Mathf.Abs(status.worldBound.height-22)<.5f,"Status height");
+                                Check(status.worldBound.yMax<=scroll.contentViewport.worldBound.yMax+1,"Status cannot be scrolled into view: "+size+" profile="+moving+" model="+model+
+                                    " status="+status.worldBound+" viewport="+scroll.contentViewport.worldBound+" offset="+scroll.scrollOffset+" high="+scroll.verticalScroller.highValue);
+                                Check(status.worldBound.yMax>=root.yMax-horizontal-3,"Status does not reach bottom of window");
+                                int controls=0;
+                                foreach(var control in McpElements(sharedBottom).Where(e=>e is Button || e is BaseField<bool> ||
+                                    e is BaseField<int> || e is BaseField<float> || e is BaseField<string>))
+                                {
+                                    var bounds=control.worldBound;
+                                    Check(bounds.height>0 && bounds.yMin>=area.yMin-.5f && bounds.yMax<=area.yMax+.5f,
+                                        "Control outside bottom panel: "+control.name+" "+ControlText(control)+" "+bounds+" panel="+area);
+                                    Check(bounds.yMax<=status.worldBound.yMin+.5f,"Control covered by status: "+ControlText(control));
+                                    controls++;
+                                }
+                                Check(controls>10 && modelMode==model,"Expected scene/model controls");
+                                var sidebar=MenuRoot.Q("sidebar");
+                                foreach(var control in McpElements(sidebar).OfType<Button>())
+                                    Check(control.worldBound.yMax<=sidebar.worldBound.yMax+.5f,"Timeline control outside sidebar: "+control.text);
+                                report.AppendLine(size+" profile="+moving+" model="+model+" controls="+controls+" root="+root+" viewport="+scroll.contentViewport.worldBound+" panel="+area+" status="+status.worldBound);
+                                if(size.Item1==1920 || (size.Item1==2160 && !model) || (size.Item1==900 && !model))
+                                {
+                                    var previous=RenderTexture.active;
+                                    var image=new Texture2D(target.width,target.height,TextureFormat.RGBA32,false);
+                                    try{
+                                        RenderTexture.active=target;image.ReadPixels(new Rect(0,0,target.width,target.height),0,0);image.Apply();
+                                        File.WriteAllBytes(Path.Combine(directory,size.Item1+"x"+size.Item2+"-"+(moving?"ribbon":"classic")+(model?"-model":"-scene")+".png"),image.EncodeToPNG());
+                                    }finally{RenderTexture.active=previous;Destroy(image);}
+                                }
+                                cases++;
+                            }
+                            catch(Exception ex){
+                                error="FAIL "+ex;
+                                foreach(var name in new[]{"workspace","main","right","sidebar"}){
+                                    var element=MenuRoot.Q(name);var style=element.resolvedStyle;
+                                    report.AppendLine(name+" "+element.worldBound+" height="+element.style.height+" min="+style.minHeight+" basis="+style.flexBasis+" grow="+style.flexGrow+" shrink="+style.flexShrink);
+                                    foreach(var child in element.Children())report.AppendLine("  "+child.name+" "+string.Join(" ",child.GetClasses())+" "+child.worldBound+" display="+child.resolvedStyle.display);
+                                }
+                            }
+                            if(error!=null)break;
+                        }
+                    }
+                    finally{panel.targetTexture=priorTarget;target.Release();Destroy(target);}
+                    if(error!=null)break;
+                }
+            }
+            finally{
+                panel.targetTexture=priorTarget;panel.scale=priorScale;ApplyProfile(priorProfile);ChangeMode(priorMode);scroll.scrollOffset=priorOffset;
+                File.WriteAllText(Path.Combine(directory,"layout.txt"),report.ToString());
+            }
+            complete(error??"PASS workspace layout: "+cases+" scene/model, profile, window size and DPI combinations");
+        }
+
         void CheckRigShapes(string path)
         {
             var live=actor.rigProfile;
@@ -116,11 +212,11 @@ namespace AvaAvaDance
                 throw new Exception("Scene snapshot identities");
             editor.SetOrder(state.Document,state.CalculationOrder.Reverse().ToArray(),true);ApplyHistory(false);
             if(!editor.ReadScene().CalculationOrder.SequenceEqual(state.CalculationOrder))throw new Exception("Scene calculation order undo");
-            var storage=extensions.Single(e=>e.manifest.id=="ava.vmd-sizing");var raw=new byte[]{0,255,23};
-            storage.WriteBlock(new byte[]{123,125},new System.Collections.Generic.Dictionary<string,byte[]>{{"probe",raw}});
+            var storage=scope;var raw=new byte[]{0,255,23};var priorState=storage.ReadState();
+            storage.WriteBlock(priorState,new System.Collections.Generic.Dictionary<string,byte[]>{{"probe",raw}});
             var archivePath=Path.Combine(dir,"blobs.avadance");SaveProject(archivePath);OpenProject(archivePath);
             if(!storage.Blobs().Contains("probe") || !storage.ReadBlob("probe").SequenceEqual(raw))throw new Exception("Extension resource round trip");
-            storage.WriteBlock(null,new System.Collections.Generic.Dictionary<string,byte[]>{{"probe",null}});
+            storage.WriteBlock(priorState,new System.Collections.Generic.Dictionary<string,byte[]>{{"probe",null}});
             if(storage.ReadBlob("probe")!=null)throw new Exception("Extension resource deletion");
         }
 

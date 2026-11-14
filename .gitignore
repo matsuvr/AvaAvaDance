@@ -52,6 +52,7 @@ ExportedObj/
 .consulo/
 *.csproj
 !/Tests/ExtensionHarness/ExtensionHarness.csproj
+!/Tests/VsqxHarness/VsqxHarness.csproj
 !/Extensions/**/*.csproj
 !/Examples/**/*.csproj
 *.unityproj

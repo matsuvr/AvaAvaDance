@@ -105,7 +105,7 @@ namespace AvaAvaDance
                     var asset=ReadVrmFile(pathName);
                     ImportModel(asset,new System.Collections.Generic.List<Import.UnityPackageReader.PackageAsset>{asset},null);
                     if(IsController(file) && !string.IsNullOrEmpty(spec.controllerMotion) &&
-                        (string.IsNullOrEmpty(spec.controllerTarget) || string.Equals(file,spec.controllerTarget,StringComparison.OrdinalIgnoreCase))){ChangeMode(true);ImportMotionFile(Input(spec.controllerMotion));}
+                        (string.IsNullOrEmpty(spec.controllerTarget) || string.Equals(file,spec.controllerTarget,StringComparison.OrdinalIgnoreCase))){ChangeMode(true);ImportReferenceMotionFile(Input(spec.controllerMotion));}
                     if(!asset.Data.SequenceEqual(File.ReadAllBytes(pathName)))throw new InvalidDataException("元データが読み込み時に変更されました。");
                     return;
                 }
@@ -116,7 +116,7 @@ namespace AvaAvaDance
             LoadSource(spec.package);var material=scope.Materials().First();
             foreach(string companion in spec.companions??Array.Empty<string>())LoadSource(companion);
             if(spec.hideGrid)gridToggle.value=false;
-            if(!string.IsNullOrEmpty(spec.camera)){ChangeMode(false);ImportMotionFile(Input(spec.camera));}
+            if(!string.IsNullOrEmpty(spec.camera)){ChangeMode(false);ImportReferenceMotionFile(Input(spec.camera));}
             if(spec.automatic){
                 var provider=(ISurfaceProvider)scope.plugin;
                 if(!provider.HasBindings)throw new InvalidDataException("モデルの自動エフェクトが見つかりません。");
@@ -539,7 +539,9 @@ namespace AvaAvaDance
         {
             string result=null;bool baseline=Application.runInBackground;
             if(baseline)result="FAIL background setting";
-            foreach(var probe in new[]{("ava.vmd-sizing.open","VMDサイジング"),("ava.mme.assign","AvaAvaEffect - エフェクトファイル割り当て")})
+            var probes=new[]{("ava.mme.assign","AvaAvaEffect - エフェクトファイル割り当て")}.AsEnumerable();
+            if(Application.isEditor || Debug.isDebugBuild)probes=probes.Append(("ava.vmd-sizing.open","VMDサイジング"));
+            foreach(var probe in probes)
             {
                 if(result!=null)break;
                 if(!FindCommand(probe.Item1,out var id) || !Execute(id) || !Application.runInBackground){result="FAIL window activation "+probe.Item1;break;}

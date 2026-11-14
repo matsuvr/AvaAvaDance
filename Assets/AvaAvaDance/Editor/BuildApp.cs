@@ -10,16 +10,25 @@ namespace AvaAvaDance.Editor
         [Serializable] sealed class PackageManifest
         {
             public string id;
+            public bool developmentOnly;
             public Entry entry;
         }
         [Serializable] sealed class Entry { public string assembly; }
-        static void BuildExtensions(string output)
+        static void BuildExtensions(string output, bool development)
         {
             foreach(var folder in Directory.GetDirectories("Extensions"))
             {
                 string manifest=Path.Combine(folder,"plugin.json");
                 if(!File.Exists(manifest))continue;
                 var package=JsonUtility.FromJson<PackageManifest>(File.ReadAllText(manifest));
+                var target=Path.GetFullPath(Path.Combine(output,"Extensions",package.id));
+                if(package.developmentOnly && !development)
+                {
+                    var root=Path.GetFullPath(Path.Combine(output,"Extensions"))+Path.DirectorySeparatorChar;
+                    if(!target.StartsWith(root,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("拡張の出力先が不正です。");
+                    if(Directory.Exists(target))Directory.Delete(target,true);
+                    continue;
+                }
                 var project=Directory.GetFiles(folder,"*.csproj")[0];
                 var start=new System.Diagnostics.ProcessStartInfo("dotnet","build \""+Path.GetFullPath(project)+"\" -c Release --nologo")
                     {UseShellExecute=false,CreateNoWindow=true};
@@ -27,7 +36,6 @@ namespace AvaAvaDance.Editor
                 {
                     process.WaitForExit(); if(process.ExitCode!=0)throw new Exception("拡張ビルド失敗 "+package.id);
                 }
-                var target=Path.Combine(output,"Extensions",package.id);
                 var assembly=Path.Combine(target,package.entry.assembly);
                 Directory.CreateDirectory(Path.GetDirectoryName(assembly));
                 string artifacts=Path.Combine(folder,"bin","Release","netstandard2.1");
@@ -38,7 +46,10 @@ namespace AvaAvaDance.Editor
             }
         }
 
-        public static void Windows()
+        public static void Windows() => BuildWindows(false);
+        public static void WindowsDevelopment() => BuildWindows(true);
+
+        static void BuildWindows(bool development)
         {
             OfficialShaderBuild.Stage();
             foreach (var input in new[] { "Assets/AvaAvaDance/Resources/MPLUS1p-Regular.ttf", "Assets/Plugins/x86_64/AvaFbx.dll",
@@ -83,7 +94,7 @@ namespace AvaAvaDance.Editor
             var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes=new[]{"Assets/Scenes/Main.unity"}, locationPathName=Path.Combine(outputDirectory,"AvaAvaDance.exe"),
-                target=BuildTarget.StandaloneWindows64, options=BuildOptions.None
+                target=BuildTarget.StandaloneWindows64, options=development ? BuildOptions.Development : BuildOptions.None
             });
             if(report.summary.result != BuildResult.Succeeded) throw new Exception("Build failed: " + report.summary.result);
             var notices = Directory.CreateDirectory(Path.Combine(outputDirectory,"ThirdPartyNotices")).FullName;
@@ -91,7 +102,7 @@ namespace AvaAvaDance.Editor
             foreach (var source in Directory.GetFiles("ThirdPartyNotices", "*.txt"))
                 File.Copy(source, Path.Combine(notices, Path.GetFileName(source)), true);
             OfficialShaderBuild.CopyTo(outputDirectory);
-            BuildExtensions(outputDirectory);
+            BuildExtensions(outputDirectory,development);
             var mcpDirectory = Directory.CreateDirectory(Path.Combine(outputDirectory, "Mcp"));
             foreach (var script in new[] { "ava_mcp.py", "ava_mcp_windows.py" })
                 File.Copy(Path.Combine("Tools", script), Path.Combine(mcpDirectory.FullName, script), true);

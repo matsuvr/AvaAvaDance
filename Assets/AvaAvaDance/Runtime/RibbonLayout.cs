@@ -7,7 +7,7 @@ namespace AvaAvaDance
 {
     public sealed partial class DanceApp
     {
-        VisualElement transport,sharedBottom,legacySpacer,panelStrip;
+        VisualElement transport,sharedBottom,panelStrip;
         Toggle ribbonRepeat;
         TextField ribbonStart,ribbonEnd;
         SliderInt ribbonSeek;
@@ -58,7 +58,7 @@ namespace AvaAvaDance
         }
         void BuildTransport(VisualElement workspace,VisualElement bottom)
         {
-            sharedBottom=bottom;legacySpacer=Box(bottom.parent,"panel-space","panel-space");
+            sharedBottom=bottom;
             transport=Box(workspace,"command-bar","ribbon-transport");
             void Tool(string id,string label,System.Action action,System.Func<bool> enabled=null)=>
                 transportDefaults.Add((id,label,ProfileAction(transport,label,action,enabled)));
@@ -100,8 +100,11 @@ namespace AvaAvaDance
         void PresentRibbonLayout(bool moving)
         {
             transport.EnableInClassList("hidden",!moving);panelStrip.EnableInClassList("hidden",!moving);
-            legacySpacer.EnableInClassList("hidden",moving);
-            sharedBottom.EnableInClassList("classic-bottom",!moving);
+            var parent=MenuRoot.Q(moving?"workspace":"right");
+            if(sharedBottom.parent!=parent){
+                sharedBottom.RemoveFromHierarchy();
+                if(moving)parent.Insert(parent.IndexOf(transport)+1,sharedBottom);else parent.Add(sharedBottom);
+            }
             var curve=MenuRoot.Q("interpolation");
             if(curve!=null){
                 curve.EnableInClassList("hidden",moving && !showRibbonCurve);

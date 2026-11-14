@@ -1,5 +1,6 @@
 {
   "manifestVersion": 1,
+  "developmentOnly": true,
   "displayName": "VMDサイジング",
   "id": "ava.vmd-sizing",
   "version": "1.0.0",

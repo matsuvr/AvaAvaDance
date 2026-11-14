@@ -202,6 +202,11 @@ namespace AvaAvaDance
                 }
             }
             if (result.StartsWith("FAIL")) { SaveSmokeVerdict(directory,"player",args[input+1],result); Application.Quit(1); yield break; }
+            if(args.Contains("-avaWorkspaceLayoutSmoke")){
+                yield return CheckWorkspaceLayout(directory,error=>result=error);
+                SaveSmokeVerdict(directory,"-avaWorkspaceLayoutSmoke",args[input+1],result);
+                Application.Quit(result.StartsWith("PASS")?0:1);yield break;
+            }
             if(args.Contains("-avaCurveSmoke")){
                 yield return CheckCurveTools(directory,error=>result=error);
                 if(result.StartsWith("PASS"))yield return CheckCurveDefaults(directory,error=>result=error);
