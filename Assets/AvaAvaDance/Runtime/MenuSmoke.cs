@@ -227,6 +227,9 @@ namespace AvaAvaDance
             CheckPlaybackModes();
             CheckTimelineRetiming(dir);
             CheckEditingAndOutput(dir);
+            CheckSceneLights();
+            CheckPlacementAndFollow();
+            CheckClearBookmarks();
             var pose=actor.bones[0].Track.Current;pose.Rotation=Quaternion.Euler(12,15,18);pose.Position=new Vector3(.1f,.2f,.3f);pose.PhysicsOff=true;
             actor.bones[0].Track.Preview(pose);SaveVpd(vpd);actor.bones[0].Track.Preview(BonePose.Rest);LoadVpd(vpd);
             Check(Quaternion.Angle(actor.bones[0].Track.Current.Rotation,pose.Rotation)<.1f && Vector3.Distance(actor.bones[0].Track.Current.Position,pose.Position)<.0001f,"VPD");

@@ -182,7 +182,7 @@ namespace AvaAvaDance
                 (parent!=null?parent.rotation:Quaternion.identity)*Quaternion.Euler(pose.Rotation)*prop.Data.MeshBasis);
             t.localScale=Vector3.one*((prop.Data.meshUnit>0?prop.Data.meshUnit:SceneUnit)*pose.Scale);
         }
-        void LateUpdate() {foreach(var prop in props)if(prop.Track.Current.Parent!=null || prop.Track.Current.ParentId!=null)PositionProp(prop,prop.Track.Current);}
+        void LateUpdate() {foreach(var prop in props)if(prop.Track.Current.Parent!=null || prop.Track.Current.ParentId!=null)PositionProp(prop,prop.Track.Current);UpdateTargetViewFollow();}
         void ImportAccessoryFile(string path)
         {
             if(!string.Equals(Path.GetExtension(path),".x",StringComparison.OrdinalIgnoreCase))

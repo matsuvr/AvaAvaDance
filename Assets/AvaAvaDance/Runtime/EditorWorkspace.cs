@@ -113,7 +113,7 @@ namespace AvaAvaDance
                     ProfileAction(group,"リグ保存",()=>FileAction("リグ保存","avarig",true,p=>WriteFile(p,System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(actor.rigProfile,true)))),()=>actor.rigProfile!=null);ProfileAction(group,"アクセサリ読込",()=>FileAction("アクセサリ読込","x",false,ImportAccessoryFile));
                     Group("読み込み／保存");Add("モーション読込",Command.LoadMotion); Add("モーション保存",Command.SaveMotion);
                     Add("ポーズ読込",Command.LoadPose);Add("ポーズ保存",Command.SavePose);
-                    Group("オーディオ");Add("WAV読込",Command.LoadWave);
+                    Group("オーディオ");Add("WAV読込",Command.LoadWave);Add("開始フレーム",Command.AudioPlacement);
                     break;
                 case 1:
                     Group("フレーム");ProfileAction(group,"登録",RegisterSelection,()=>selectedTrack!=null);
@@ -123,19 +123,19 @@ namespace AvaAvaDance
                     Group("列操作");ProfileAction(group,"列挿入",()=>ShiftRibbonColumn(true));
                     ProfileAction(group,"列削除",()=>ShiftRibbonColumn(false));
                     Add("拡大・縮小",Command.ScaleKeyframes);
-                    Group("ブックマーク");ProfileAction(group,"追加・削除",ToggleBookmark);ProfileAction(group,"前に移動",()=>JumpBookmark(false),()=>bookmarks.Any(f=>f<frame));ProfileAction(group,"次に移動",()=>JumpBookmark(true),()=>bookmarks.Any(f=>f>frame));
+                    Group("ブックマーク");Add("すべて削除",Command.ClearBookmarks);ProfileAction(group,"追加・削除",ToggleBookmark);ProfileAction(group,"前に移動",()=>JumpBookmark(false),()=>bookmarks.Any(f=>f<frame));ProfileAction(group,"次に移動",()=>JumpBookmark(true),()=>bookmarks.Any(f=>f>frame));
                     Group("ボーン"); ProfileAction(group,"未登録選択",()=>SelectBoneSet(true),ModelBones);
                     ProfileAction(group,"ポーズ反転",MirrorDraft,ModelBones);
                     Add("位置角度補正",Command.AdjustBones); Add("センター位置バイアス",Command.CenterBias);
-                    Add("モーションサイジング",Command.MotionSizing);
+                    Add("モーションサイジング",Command.MotionSizing);Add("モデル位置・回転",Command.ModelPlacement);
                     Add("IKを追加",Command.AddIK); ProfileAction(group,"手指の握り",HandPoseDialog,ModelBones);ProfileAction(group,"外部親",ParentDialog,ModelBones);
                     break;
                 case 2:
-                    Group("Render");Add("出力サイズ",Command.OutputSize); Add("背景画像",Command.LoadImage);
+                    Group("Render");Add("出力サイズ",Command.OutputSize); Add("背景画像",Command.LoadImage);Add("背景移動・拡縮",Command.BackdropPlacement);
                     Group("影");Add("地面影",Command.GroundShadow); Add("別ウィンドウ",Command.SeparateWindow);
                     break;
                 case 3:
-                    Group("表示");
+                    Group("表示");Add("視点追従",Command.ViewTargetFollow);
                     ProfileAction(group,"ボーン表示",ToggleMarkers);
                     ProfileAction(group,"ポーズハンドル",ToggleHandles);
                     ProfileAction(group,"拡張ハンドル",()=>{extendedHandles=!extendedHandles;WorkspacePreferences.SetInt("Ribbon.ExtendedHandles",extendedHandles?1:0);RedrawOverlay();});
@@ -144,7 +144,7 @@ namespace AvaAvaDance
                 case 4:
                     Group("動作");
                     Add("常に演算",Command.PhysicsAlways); Add("トレース",Command.PhysicsTrace);
-                    Add("演算なし",Command.PhysicsOff); Add("重力",Command.Gravity); Add("剛体表示",Command.ShowBodies); break;
+                    Add("キーに焼込",Command.BakePhysics);Add("演算なし",Command.PhysicsOff); Add("重力",Command.Gravity); Add("剛体表示",Command.ShowBodies); break;
                 case 5: Group("プラグイン"); PopulateExtensionRibbon(group); break;
             }
             ribbonTools.EnableInClassList("hidden", ribbonCollapsed);

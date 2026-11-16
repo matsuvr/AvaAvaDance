@@ -140,7 +140,7 @@ namespace AvaAvaDance
             }
         }
 
-        bool McpCanEdit => modal == null && importDialog == null && !exporting && !importing && !loadingWave && !drainingExtensions;
+        bool McpCanEdit => !physicsBaking && modal == null && importDialog == null && !exporting && !importing && !loadingWave && !drainingExtensions;
 
         string McpCommandId(Command id)
         {

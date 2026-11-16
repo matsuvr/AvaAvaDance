@@ -18,6 +18,7 @@ namespace AvaAvaDance
         [Serializable] class ModelState
         {
             public string id, label, modelGuid, prefabGuid;
+            public Vector3 placementPosition, placementAngles;
             public List<AssetInfo> assets;
             public SavedMotion modelMotion, modelDraft;
             public bool visible, selfShadow;
@@ -38,7 +39,9 @@ namespace AvaAvaDance
             public string format="AvaAvaDance project 2", start, end, selection, soundName;
             public List<ModelState> others;
             public int schemaVersion=2, extensionStorageVersion=1;
+            public int audioStartFrame;
             public int[] bookmarks;
+            public string[] additionalLights;
             public BookmarkNote[] bookmarkNotes;
             public SessionSelection selected;
             [NonSerialized] public Dictionary<string,byte[]> extensionPayload;
@@ -74,6 +77,7 @@ namespace AvaAvaDance
 
         void CaptureActor(ModelState state,bool contentOnly=false)
         {
+            state.placementPosition=actor.placementPosition;state.placementAngles=actor.placementAngles;
             state.id=actor.avatar==null?null:actor.id;state.label=actor.label;state.modelGuid=actor.modelGuid;state.prefabGuid=actor.prefabGuid;
             state.modelSettings=actor.modelOverrides;state.visible=!contentOnly && actor.avatar!=null && actor.avatar.activeSelf;
             state.selfShadow=actor.modelSelfShadow;state.customIK=actor.customIK.ToArray();
@@ -93,14 +97,14 @@ namespace AvaAvaDance
             };
             var p=new Project {
                 bookmarkNotes=bookmarkMemos.OrderBy(p=>p.Key).Select(p=>new BookmarkNote{frame=p.Key,memo=p.Value}).ToArray(),bookmarks=bookmarks.ToArray(),selected=selectedState, extensionPayload=new Dictionary<string,byte[]>(extraEntries),
-                accessories=props.Select(a=>a.Data).ToList(),constraints=externalParents.ToArray(),screenMode=screenMode,
+                additionalLights=CaptureAdditionalLights(),accessories=props.Select(a=>a.Data).ToList(),constraints=externalParents.ToArray(),screenMode=screenMode,
                 display=JsonUtility.FromJson<ViewOptions>(JsonUtility.ToJson(viewOptions)), image=imageBytes, video=videoBytes,
                 shaderCount=shaderLibrary.ProjectPacks.Count(), frame=frame, selection=selectedTrack?.Name,
                 sceneMotion=CaptureMotion(false,false,contentOnly), sceneDraft=CaptureMotion(false,true,contentOnly),
                 modelMode=modelMode,editorView=modelView,fromCamera=useCameraView,
                 repeat=transportRepeat,start=transportStart,end=transportEnd,grid=gridToggle.value,
                 samples=clip!=null?clip.samples:0,rate=clip!=null?clip.frequency:0,channels=clip!=null?clip.channels:0,soundName=clip!=null?clip.name:null,
-                volume=soundtrack.volume,mute=muteWave,scrub=scrubSound,groundShadow=groundShadow,
+                audioStartFrame=audioStartFrame,volume=soundtrack.volume,mute=muteWave,scrub=scrubSound,groundShadow=groundShadow,
                 groundBrightness=groundBrightness,transparentGround=transparentGround,showSelfShadow=showSelfShadow,
                 engine=(int)physicsEngine,physics=(int)physicsMode,floor=physicalFloor,forcePhysics=forceOnPlayback,showBodies=showBodies,
                 output=movie, renderOrder=drawOrder.Select(a=>a.id).ToArray(),simulationOrder=calculationOrder.Select(a=>a.id).ToArray()
@@ -191,18 +195,20 @@ namespace AvaAvaDance
             documentGeneration++; extraEntries=new Dictionary<string,byte[]>(); bookmarks.Clear();bookmarkMemos.Clear();sceneSidecar=new VmdSidecar();
             externalParents.Clear();ClearAllActors(); ChangeMode(false); RestoreAccessories(new Project());
             shaderLibrary.RestoreProjectPacks(Array.Empty<byte[]>());
+            audioStartFrame=0;
             soundtrack.Stop(); var old=soundtrack.clip; soundtrack.clip=null; if(old!=null)Destroy(old);
             peaks=Array.Empty<Vector2>(); waveform.MarkDirtyRepaint();
             physicsEngine=PhysicsEngine.Bullet; physicsMode=PhysicsMode.OnOff; physicalFloor=groundShadow=actor.modelSelfShadow=true; forceOnPlayback=showBodies=false;
             groundBrightness=1;transparentGround=true;showSelfShadow=true;
             RestoreView(new Project());
-            scrubSound=muteWave=false; soundVolume.value=1; gridToggle.value=true;
-            playFrom.value="";playTo.value="";repeat.value=false;
+            scrubSound=muteWave=false; soundtrack.volume=1;soundVolume.SetValueWithoutNotify(1);gridToggle.value=true;
+            RestoreTransportSettings("", "", false);
             modelView=CameraPose.Initial;front=Vector3.forward;useCameraView=false;movie=new MovieSettings();
+            RestoreAdditionalLights(null);
             foreach(var t in sceneTracks) {t.ClearSources();t.Layers.Clear();t.ActiveLayer=t.ActiveClip=null;foreach(int f in t.Frames.Skip(1).ToArray())t.Write(f,null);}
             cameraTrack.Write(0,CameraPose.Initial);lightTrack.Write(0,LightPose.Initial);
             shadowTrack.Write(0,ShadowPose.Initial);gravityTrack.Write(0,GravityPose.Initial);
-            ResetHistory(); SelectTrack(cameraTrack); SetFrame(0); projectPath=null; NotifyProject(projectOpened,null); MarkSaved(); status.text="新規プロジェクト";
+            ResetHistory();ReleaseInactiveSceneLights(); SelectTrack(cameraTrack); SetFrame(0); projectPath=null; NotifyProject(projectOpened,null); MarkSaved(); status.text="新規プロジェクト";
         }
 
         void ResetHistory()
@@ -349,7 +355,7 @@ namespace AvaAvaDance
                 try { ApplyProject(p,assets,packs,clip); }
                 catch {
                     ApplyProject(before,priorAssets,priorPacks,oldClip);
-                    MotionTrack Map(MotionTrack track) => (priorModelTracks.TryGetValue(track,out string id)?drawOrder.First(a=>a.id==id).modelTracks:sceneTracks)
+                    MotionTrack Map(MotionTrack track) => (priorModelTracks.TryGetValue(track,out string id)?drawOrder.First(a=>a.id==id).modelTracks:sceneTracks.Concat(retainedLights.Select(l=>l.Track)))
                         .First(t=>t.Name==track.Name && t.GetType()==track.GetType());
                     KeyChange Remap(KeyChange change) { if (change.Track!=null) change.Track=Map(change.Track); return change; }
                     foreach(var group in undoBefore.Reverse())undo.Push(group.Select(Remap).ToArray());
@@ -358,6 +364,7 @@ namespace AvaAvaDance
                     rangeSelected=previousRange; foreach(var key in selectedBefore)selectedKeys.Add((Map(key.track),key.frame));
                     RefreshKeyButtons(); throw;
                 }
+                ReleaseInactiveSceneLights();
                 if(oldClip!=null)Destroy(oldClip);clip=null;projectPath=path;NotifyProject(projectOpened,path);MarkSaved();
                 status.text="プロジェクト読込　"+Path.GetFileName(path);
             } finally {if(clip!=null)Destroy(clip);}
@@ -404,6 +411,7 @@ namespace AvaAvaDance
                 actor.modelOverrides.bullet.Select(s=>s.name).Distinct().Count()!=actor.modelOverrides.bullet.Count)
                 throw new InvalidDataException("Bullet剛体設定が不正です。");
             foreach(var setting in actor.modelOverrides.physics)ApplyDynamicSetting(setting);
+            RestoreModelPlacement(actor,p.placementPosition,p.placementAngles);
             RestoreMotion(p.modelMotion,true,legacy:string.IsNullOrEmpty(p.id));actor.avatar.SetActive(p.visible);actor.modelSelfShadow=p.selfShadow;
             ApplyModelDisplay();
         }
@@ -427,13 +435,14 @@ namespace AvaAvaDance
             if(!string.IsNullOrEmpty(p.modelGuid))RestoreActor(p,assets);else front=Vector3.forward;
             RestoreOrder(drawOrder,p.renderOrder); RestoreOrder(calculationOrder,p.simulationOrder); ApplyDrawOrder();
             RefreshActorUI();
-            RestoreAccessories(p); RestoreMotion(p.sceneMotion,false); RestoreView(p);
+            RestoreAdditionalLights(p.additionalLights); RestoreAccessories(p); RestoreMotion(p.sceneMotion,false); RestoreView(p);
             physicsEngine=(PhysicsEngine)p.engine;physicsMode=(PhysicsMode)p.physics;physicalFloor=p.floor;showBodies=p.showBodies;forceOnPlayback=p.forcePhysics;
             groundBrightness=p.groundBrightness;transparentGround=p.transparentGround;showSelfShadow=p.showSelfShadow;
             groundShadow=p.groundShadow;actor.modelSelfShadow=p.selfShadow;modelView=p.editorView;useCameraView=p.fromCamera;
-            soundtrack.Stop(); soundtrack.clip=clip; soundVolume.value=p.volume; muteWave=p.mute;scrubSound=p.scrub;
+            audioStartFrame=Mathf.Clamp(p.audioStartFrame,0,MaxFrame);
+            soundtrack.Stop(); soundtrack.clip=clip; soundtrack.volume=p.volume;soundVolume.SetValueWithoutNotify(p.volume);muteWave=p.mute;scrubSound=p.scrub;
             peaks=clip!=null?ReadWaveform(clip):Array.Empty<Vector2>();waveform.MarkDirtyRepaint();
-            movie=p.output;playFrom.value=p.start??"";playTo.value=p.end??"";repeat.value=p.repeat;gridToggle.value=p.grid;
+            movie=p.output;RestoreTransportSettings(p.start,p.end,p.repeat);gridToggle.value=p.grid;
             ChangeMode(p.modelMode);SelectTrack(VisibleTracks.Find(t=>t.Name==p.selection)??VisibleTracks.FirstOrDefault());
             BindLinks(p.constraints??Array.Empty<BoneLink>());ResetHistory();InvalidateDynamics();SetFrame(p.frame);
             RestoreMotion(p.sceneDraft,false,true);

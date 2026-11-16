@@ -26,6 +26,53 @@ namespace AvaAvaDance
             Apply(null,true);PushOperation(null,Apply);
         }
 
+        void ConfirmClearBookmarks()
+        {
+            if(bookmarks.Count==0)return;
+            ShowDialog("ブックマークをすべて削除",out var body);
+            body.Add(new Label(bookmarks.Count+" 件のブックマークとメモを削除します。Undoで元に戻せます。"));
+            var buttons=Box(body,"clear-bookmarks","row");
+            Action(buttons,"削除",true,()=>{CloseDialog();ClearBookmarks();});
+            Action(buttons,"キャンセル",true,CloseDialog);
+        }
+
+        void ClearBookmarks()
+        {
+            if(bookmarks.Count==0)return;
+            var frames=bookmarks.ToArray();
+            var notes=new Dictionary<int,string>(bookmarkMemos);
+            void Apply(MotionTrack _,bool forward)
+            {
+                bookmarks.Clear();bookmarkMemos.Clear();
+                if(!forward){foreach(int at in frames)bookmarks.Add(at);foreach(var note in notes)bookmarkMemos[note.Key]=note.Value;}
+                RefreshTimelineLabels();
+            }
+            Apply(null,true);PushOperation(null,Apply);
+        }
+
+        void CheckClearBookmarks()
+        {
+            var original=bookmarks.ToArray();var originalNotes=new Dictionary<int,string>(bookmarkMemos);
+            int history=undo.Count;
+            try
+            {
+                bookmarks.Clear();bookmarkMemos.Clear();bookmarks.Add(0);bookmarks.Add(MaxFrame);bookmarkMemos[MaxFrame]="保存メモ";
+                ClearBookmarks();
+                if(bookmarks.Count!=0 || bookmarkMemos.Count!=0 || undo.Count!=history+1)throw new InvalidOperationException("bookmark clear transaction");
+                ApplyHistory(false);
+                if(!bookmarks.SetEquals(new[]{0,MaxFrame}) || bookmarkMemos[MaxFrame]!="保存メモ")throw new InvalidOperationException("bookmark clear undo");
+                ApplyHistory(true);
+                if(bookmarks.Count!=0 || bookmarkMemos.Count!=0)throw new InvalidOperationException("bookmark clear redo");
+                ClearBookmarks();if(undo.Count!=history+1)throw new InvalidOperationException("bookmark clear no-op");
+                ApplyHistory(false);redo.Clear();
+            }
+            finally
+            {
+                bookmarks.Clear();bookmarks.UnionWith(original);bookmarkMemos.Clear();foreach(var p in originalNotes)bookmarkMemos[p.Key]=p.Value;
+                RefreshTimelineLabels();
+            }
+        }
+
         void EditBookmark(int at)
         {
             ShowDialog("ブックマーク",out var body);

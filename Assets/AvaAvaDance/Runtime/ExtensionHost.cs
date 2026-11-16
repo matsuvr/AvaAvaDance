@@ -175,6 +175,7 @@ namespace AvaAvaDance
         void ReleaseActivity() { if(activityCount>0) { activityCount--; ReleaseBackground(); } }
         void PumpExtensions()
         {
+            if(physicsBaking)return;
             while(pluginQueue.TryDequeue(out var action))
                 try { action(); } catch(Exception ex) { Debug.LogException(ex); status.text=ex.Message; }
         }

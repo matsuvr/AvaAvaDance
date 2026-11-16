@@ -136,7 +136,7 @@ namespace AvaAvaDance
                 if (saved == null || saved.name == null || !expected.TryGetValue((saved.name, type), out var track)
                     || loaded.ContainsKey(track) || saved.frames == null || saved.frames.Length == 0 || saved.frames[0] != 0)
                     throw new InvalidDataException("トラックが現在の編集対象と一致しません。");
-                Array values = track == cameraTrack ? (Array)saved.cameras : track == lightTrack ? saved.lights : track is MotionTrack<float> ? saved.weights : track is MotionTrack<AccessoryPose> ? saved.props : track is MotionTrack<ShadowPose> ? saved.shadows : track is MotionTrack<GravityPose> ? saved.gravity : track is MotionTrack<SwitchPose> ? saved.switches : (Array)saved.poses;
+                Array values = track == cameraTrack ? (Array)saved.cameras : track is MotionTrack<LightPose> ? saved.lights : track is MotionTrack<float> ? saved.weights : track is MotionTrack<AccessoryPose> ? saved.props : track is MotionTrack<ShadowPose> ? saved.shadows : track is MotionTrack<GravityPose> ? saved.gravity : track is MotionTrack<SwitchPose> ? saved.switches : (Array)saved.poses;
                 if (values == null || values.Length != saved.frames.Length)
                     throw new InvalidDataException("キー数が一致しません。");
                 if(saved.sources?.Length>0 && (draft || saved.sources.Length!=saved.frames.Length ||
