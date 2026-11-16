@@ -46,17 +46,28 @@ namespace AvaAvaDance
             if (actor.avatar == null) return;
             StopPlayback(); var owner = actor;
             ShowDialog("モデル全体の配置", out var body);
-            body.Add(new Label("既存キーを変更しない位置・回転オフセットです。位置はメートル、回転は度。"));
-            var position = new Vector3Field("位置") { name = "model-placement-position", value = owner.placementPosition };
-            var angles = new Vector3Field("回転") { name = "model-placement-rotation", value = owner.placementAngles };
-            body.Add(position); body.Add(angles);
+            body.Add(new Label("既存キーを変えずに位置と回転を調整します。"));
+            FloatField[] VectorFields(string name, string title, Vector3 value)
+            {
+                body.Add(new Label(title));
+                return Enumerable.Range(0, 3).Select(axis => {
+                    var field = new FloatField("XYZ"[axis].ToString()) {
+                        name = name + "-" + "xyz"[axis], value = value[axis], isDelayed = true
+                    };
+                    body.Add(field); return field;
+                }).ToArray();
+            }
+            Vector3 Read(FloatField[] fields) => new Vector3(fields[0].value, fields[1].value, fields[2].value);
+            void Set(FloatField[] fields, Vector3 value) { for (int i = 0; i < 3; i++) fields[i].value = value[i]; }
+            var position = VectorFields("model-placement-position", "位置（m）", owner.placementPosition);
+            var angles = VectorFields("model-placement-rotation", "回転（度）", owner.placementAngles);
             var error = new Label(); body.Add(error);
-            Action(body, "初期化", true, () => { position.value = Vector3.zero; angles.value = Vector3.zero; });
+            Action(body, "初期化", true, () => { Set(position, Vector3.zero); Set(angles, Vector3.zero); });
             Action(body, "適用", true, () => {
                 if (!drawOrder.Contains(owner) || owner.avatar == null) { CloseDialog(); return; }
-                if (!FinitePlacement(position.value) || !FinitePlacement(angles.value)) { error.text = "有限の数値を指定してください。"; return; }
+                var afterPosition = Read(position); var afterAngles = Read(angles);
+                if (!FinitePlacement(afterPosition) || !FinitePlacement(afterAngles)) { error.text = "有限の数値を指定してください。"; return; }
                 var beforePosition = owner.placementPosition; var beforeAngles = owner.placementAngles;
-                var afterPosition = position.value; var afterAngles = angles.value;
                 if (beforePosition != afterPosition || beforeAngles != afterAngles)
                 {
                     ApplyModelPlacement(owner, afterPosition, afterAngles);
