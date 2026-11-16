@@ -179,6 +179,15 @@ namespace AvaAvaDance
             catch(InvalidDataException) {}
             if(!Application.isEditor && !Debug.isDebugBuild)
                 Check(!FindCommand("ava.vmd-sizing.open",out _) && packages.All(p=>!p.manifest.developmentOnly),"internal reference tools hidden");
+            bool sizingProfile=ribbonProfile;
+            foreach(bool moving in new[]{false,true}){
+                ApplyProfile(moving);
+                Check(Execute(Command.MotionSizing),"built-in motion sizing command");
+                Check(modal?.Q<DropdownField>("sizing-source")!=null && modal.Q<Button>("sizing-run")!=null,
+                    "sizing opens inside Unity in both layouts");
+                CloseDialog();
+            }
+            ApplyProfile(sizingProfile);
             Check(MmdMenu.Bar.Length==7 && menuButtons.Count==combinedMenus.Length,"menu count");
             foreach(var group in MmdMenu.Bar) {
                 Key((KeyCode)group.Access(false),EventModifiers.Alt);

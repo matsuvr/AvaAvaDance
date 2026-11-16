@@ -126,6 +126,8 @@ namespace AvaAvaDance
                 var physBones = PrefabPhysBones.Read(prefab, candidate);
                 var human = MapHumanBones(candidate, vrm, model.Meta);
                 var rawRig=RigFiles.FromHierarchy(candidate,human);
+                var rigJointIndices=candidate.GetComponentsInChildren<Transform>(true)
+                    .Select((joint,index)=>(joint,index)).ToDictionary(p=>p.joint,p=>p.index);
                 rawRig.sourceId=prefab==null?model.Guid:prefab.Guid+"/"+model.Guid;
                 rawRig.shapes=vrm!=null?RigFiles.SpringShapes(candidate):physBones.Shapes.ToArray();
                 RigMeasurements.FromScene(candidate,rawRig);
@@ -156,7 +158,14 @@ namespace AvaAvaDance
                 else if(descriptor.coordinateSpace=="motion"){
                     candidate.transform.SetPositionAndRotation(propFloor,Quaternion.Euler(0,180,0));
                 }
-                BeginActor(candidate);actor.controller=descriptor;actor.rigProfile=rawRig;
+                BeginActor(candidate);actor.controller=descriptor;actor.rigProfile=rawRig;actor.rigJointIndices=rigJointIndices;
+                // Cameras use the displayed scene; bone sizing continues to use the authored rig.
+                // Capture this fixed normalization before logical root controls animate the model.
+                var rigRoot=rawRig.editRest[0];
+                var authoredRoot=Matrix4x4.TRS(new Vector3((float)rigRoot.x,(float)rigRoot.y,(float)rigRoot.z),
+                    new Quaternion(rigRoot.qx,rigRoot.qy,rigRoot.qz,rigRoot.qw),
+                    new Vector3(rigRoot.scaleX,rigRoot.scaleY,rigRoot.scaleZ));
+                actor.rigToScene=candidate.transform.localToWorldMatrix*authoredRoot.inverse;
                 actor.vrm = vrm;
                 actor.missingShaders = missing;
                 actor.humanBones = human;

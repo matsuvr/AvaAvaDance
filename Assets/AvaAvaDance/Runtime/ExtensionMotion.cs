@@ -97,11 +97,28 @@ namespace AvaAvaDance
 
         MotionSnapshot SnapshotMotion()
         {
+            var bones=drawOrder.SelectMany(owner=>owner.bones.Select(bone=>(owner,bone)))
+                .ToDictionary(entry=>(MotionTrack)entry.bone.Track,entry=>entry);
+            string Role(Actor owner,BoneBinding binding)
+            {
+                int index=binding.RigJointIndex;
+                if(index>=0 && index<(owner.rigProfile?.joints.Length??0))return owner.rigProfile.joints[index].role;
+                var chain=owner.ikChains.FirstOrDefault(c=>c.Handle==binding);
+                if(chain!=null && owner.humanBones!=null){
+                    foreach(var human in owner.humanBones)if(human.Value==chain.Tip)return human.Key+"IK";
+                }
+                if(owner.logicalControls.Contains(binding.Track)){
+                    switch(binding.Track.Name){case "全ての親":return "root";case "センター":return "center";case "グルーブ":return "groove";}
+                }
+                return null;
+            }
             return new MotionSnapshot{Document=documentGeneration,Frame=frame,Selection=selectedTrack?.Id,
                 DrawOrder=drawOrder.Select(a=>a.id).ToArray(),CalculationOrder=calculationOrder.Select(a=>a.id).ToArray(),
                 Tracks=EditableTracks().Select(entry=>{
                     var track=entry.track;var current=ToKey(track.CurrentValue);
                     return new TrackSnapshot{Owner=entry.owner,Id=track.Id,Name=track.Name,Channel=current.Channel,Revision=track.Revision,
+                        RigJointIndex=bones.TryGetValue(track,out var bone)?bone.bone.RigJointIndex:-1,
+                        Role=bones.TryGetValue(track,out bone)?Role(bone.owner,bone.bone):null,
                         Current=current,Frames=track.Frames.ToArray(),Values=track.Frames.Select(f=>ToKey(track.KeyAt(f),track.CurveAt(f),track.SourceAt(f))).ToArray()};
                 }).ToArray()};
         }

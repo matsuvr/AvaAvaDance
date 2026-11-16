@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../Extensions/Sdk/Ava.ExtensionSdk.csproj" />
+    <Compile Include="../../../Assets/AvaAvaDance/MotionSizing/*.cs" Link="Sizing/%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

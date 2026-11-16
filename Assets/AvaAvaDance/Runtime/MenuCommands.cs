@@ -70,6 +70,7 @@ namespace AvaAvaDance
             Bind(Command.InsertMorph, () => ShiftColumn(true, true));
             Bind(Command.DeleteMorphColumn, () => ShiftColumn(true, false));
             Bind(Command.AdjustBones, () => AdjustKeys(Command.AdjustBones), ModelBones);
+            Bind(Command.MotionSizing, OpenMotionSizing, CanSizeMotion);
             Bind(Command.CenterBias, () => AdjustKeys(Command.CenterBias), ModelBones);
             Bind(Command.AdjustMorphs, () => AdjustKeys(Command.AdjustMorphs), HasMorphs);
             Bind(Command.AdjustCamera, () => AdjustKeys(Command.AdjustCamera), SceneMode);

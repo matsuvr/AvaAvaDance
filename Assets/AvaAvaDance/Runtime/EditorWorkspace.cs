@@ -125,6 +125,7 @@ namespace AvaAvaDance
                     Group("ボーン"); ProfileAction(group,"未登録選択",()=>SelectBoneSet(true),ModelBones);
                     ProfileAction(group,"ポーズ反転",MirrorDraft,ModelBones);
                     Add("位置角度補正",Command.AdjustBones); Add("センター位置バイアス",Command.CenterBias);
+                    Add("モーションサイジング",Command.MotionSizing);
                     Add("IKを追加",Command.AddIK); ProfileAction(group,"手指の握り",HandPoseDialog,ModelBones);ProfileAction(group,"外部親",ParentDialog,ModelBones);
                     break;
                 case 2:

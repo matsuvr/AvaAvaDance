@@ -52,6 +52,8 @@ ExportedObj/
 .consulo/
 *.csproj
 !/Tests/ExtensionHarness/ExtensionHarness.csproj
+!/Tests/MotionSizingHarness/MotionSizingHarness.csproj
+!/Tests/MotionSizingHarness/Core/Ava.MotionSizing.csproj
 !/Tests/VsqxHarness/VsqxHarness.csproj
 !/Extensions/**/*.csproj
 !/Examples/**/*.csproj

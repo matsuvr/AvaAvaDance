@@ -101,7 +101,7 @@ namespace AvaAvaDance
         EditTransform,
         PreviousFolder,
         ZeroAngles,
-        ExportMp4, LoadAvaMotion, SaveAvaMotion, DynamicBone, AddIK, BulletEngine, PhysBoneEngine
+        ExportMp4, LoadAvaMotion, SaveAvaMotion, DynamicBone, AddIK, BulletEngine, PhysBoneEngine, MotionSizing
     }
 
     internal static class MmdMenu
@@ -169,6 +169,7 @@ namespace AvaAvaDance
                 new Entry(Command.SelectAccessory, "アクセサリのキーを全選択(&A)", "Select accessory keys(&A)"),
                 Separator,
                 new Entry(Command.AdjustBones, "ボーンのキーを一括補正 (R)", "Adjust bone transforms (R)"),
+                new Entry(Command.MotionSizing, "モーションサイジング", "Motion sizing"),
                 new Entry(Command.CenterBias, "センターボーンの位置をずらす(&B)", "Offset center bone keys(&B)"),
                 new Entry(Command.AdjustMorphs, "表情の強さを一括補正(&T)", "Scale expression weights(&T)"),
                 new Entry(Command.AdjustCamera, "カメラのキーを一括補正(&G)", "Adjust camera transforms(&G)")),
