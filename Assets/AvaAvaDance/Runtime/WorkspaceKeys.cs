@@ -89,9 +89,11 @@ namespace AvaAvaDance
             internal readonly EventModifiers mods;
             internal readonly bool repeat;
             internal readonly int vk;
-            internal RibbonKey(string id,string caption,KeyCode key,EventModifiers mods=EventModifiers.None,bool repeat=false,int vk=0)
-            {this.id=id;this.caption=caption;this.key=key;this.mods=mods;this.repeat=repeat;this.vk=vk;}
-            internal string Chord=>((mods&EventModifiers.Control)!=0?"Ctrl+":"")+((mods&EventModifiers.Shift)!=0?"Shift+":"")+
+            internal readonly Action<DanceApp> run;
+            internal RibbonKey(string id,string caption,KeyCode key,EventModifiers mods=EventModifiers.None,bool repeat=false,int vk=0,Action<DanceApp> run=null)
+            {this.id=id;this.caption=caption;this.key=key;this.mods=mods;this.repeat=repeat;this.vk=vk;this.run=run;}
+            internal bool HasDefault=>key!=KeyCode.None || vk!=0;
+            internal string Chord=>!HasDefault?"":((mods&EventModifiers.Control)!=0?"Ctrl+":"")+((mods&EventModifiers.Shift)!=0?"Shift+":"")+
                 (vk!=0?"OEM-"+vk.ToString("X2"):key.ToString());
         }
         static readonly RibbonKey[] ribbonKeys={
@@ -112,6 +114,8 @@ namespace AvaAvaDance
             new RibbonKey("timeline.column.insert","フレーム列を挿入",KeyCode.I),
             new RibbonKey("timeline.column.delete","フレーム列を削除",KeyCode.K),
             new RibbonKey("transport.playStop.toggle","再生・停止",KeyCode.P),
+            new RibbonKey("transport.playFromBeginning","最初から再生",KeyCode.None,run:app=>app.PlayFromBeginning()),
+            new RibbonKey("transport.playBetweenBookmarks","ブックマーク間を再生",KeyCode.None,run:app=>app.PlayBetweenBookmarks()),
             new RibbonKey("selection.unregisteredBones.select","未登録ボーンを選択",KeyCode.S),
             new RibbonKey("view.modelTranslucency.toggle","モデルの半透明表示",KeyCode.V),
             new RibbonKey("pose.mirror","ポーズを左右反転",KeyCode.W),
@@ -170,8 +174,11 @@ namespace AvaAvaDance
             if(named==null)return false;
             if(ribbonProfile && ribbonById.TryGetValue(named,out var preset)){
                 if(!repeated || preset.repeat){
-                    bool started=RibbonShortcut(preset.key,(preset.mods&EventModifiers.Control)!=0,(preset.mods&EventModifiers.Shift)!=0,false);
-                    if(started && transformKey!=KeyCode.None && preset.vk!=0){heldLabel=e.keyCode;heldVirtual=symbol.vk;}
+                    if(preset.run!=null){if(!importing && !exporting)preset.run(this);}
+                    else{
+                        bool started=RibbonShortcut(preset.key,(preset.mods&EventModifiers.Control)!=0,(preset.mods&EventModifiers.Shift)!=0,false);
+                        if(started && transformKey!=KeyCode.None && preset.vk!=0){heldLabel=e.keyCode;heldVirtual=symbol.vk;}
+                    }
                 }
                 return true;
             }
@@ -233,7 +240,7 @@ namespace AvaAvaDance
             bool InScope(string key)=>scope.index==0?!key.Contains("|"):key.StartsWith(Prefix(),StringComparison.Ordinal);
             void Sync(){var saved=keyOverrides[index].FirstOrDefault(p=>p.Value==command.value && InScope(p.Key)).Key;
                 selectedChord=saved==null?"":saved.Substring(Prefix().Length);keys.SetValueWithoutNotify(KeyCaption(selectedChord));error.text="";replace.value=false;replace.style.display=DisplayStyle.None;
-                detail.text=ribbonById.TryGetValue(command.value,out var binding)?"既定のキー　"+KeyCaption(binding.Chord):"";}
+                detail.text=ribbonById.TryGetValue(command.value,out var binding)?"既定のキー　"+(binding.HasDefault?KeyCaption(binding.Chord):"割当なし"):"";}
             scope.RegisterValueChangedCallback(_=>Sync());
             command.RegisterValueChangedCallback(_=>Sync());Sync();
             keys.RegisterCallback<KeyDownEvent>(e=>{

@@ -9,7 +9,6 @@ namespace AvaAvaDance
     {
         VisualElement transport,sharedBottom,panelStrip;
         Toggle ribbonRepeat;
-        TextField ribbonStart,ribbonEnd;
         SliderInt ribbonSeek;
         string transportStart="",transportEnd="";
         bool transportRepeat,showRibbonCurve;
@@ -64,20 +63,21 @@ namespace AvaAvaDance
                 transportDefaults.Add((id,label,ProfileAction(transport,label,action,enabled)));
             Tool("model","モデル読込",PickPackage);Tool("register","登録",RegisterSelection,()=>selectedTrack!=null);
             Tool("start","|◀",()=>SetFrame(0));Tool("previous","◀",()=>JumpKey(false));
-            Tool("play","再生 / 停止",TogglePlayback);Tool("next","▶",()=>JumpKey(true));
+            Tool("play","再生 / 停止",TogglePlayback);
+            Tool("play-start","最初から再生",PlayFromBeginning);
+            Tool("play-bookmarks","ブックマーク間を再生",PlayBetweenBookmarks);
+            Tool("next","▶",()=>JumpKey(true));
             var ids=transportDefaults.Select(b=>b.id).ToArray();
             transportOrder.AddRange(WorkspacePreferences.GetString("Ribbon.Toolbar").Split(',').Where(ids.Contains).Concat(ids).Distinct());
             hiddenTransport.UnionWith(WorkspacePreferences.GetString("Ribbon.HiddenTools").Split(',').Where(ids.Contains));
             ArrangeTransport();
             ribbonSeek=new SliderInt(0,100){tooltip="現在フレーム"};transport.Add(ribbonSeek);
             ribbonSeek.RegisterValueChangedCallback(e=>SetFrame(e.newValue));
-            ribbonStart=new TextField{tooltip="再生開始"}; ribbonEnd=new TextField{tooltip="再生終了"};
-            transport.Add(ribbonStart);transport.Add(new Label("～"));transport.Add(ribbonEnd);
             ribbonRepeat=new Toggle("くり返し");transport.Add(ribbonRepeat);
             workspace.Add(bottom);
             panelStrip=Box(bottom,"panel-targets","panel-targets");
             Action(panelStrip,"モデル",true,()=>{if(drawOrder.Count>0)ChooseMode((actor.avatar!=null?actor:drawOrder[0]).label);else PickPackage();});
-            Action(panelStrip,"アクセサリ",true,()=>{ChangeMode(false);if(activeProp!=null)SelectTrack(activeProp.Track);else FileAction("アクセサリ読込","x;vac",false,LoadAccessory);});
+            Action(panelStrip,"アクセサリ",true,()=>{ChangeMode(false);if(activeProp!=null)SelectTrack(activeProp.Track);else FileAction("アクセサリ読込","x",false,ImportAccessoryFile);});
             Action(panelStrip,"カメラ",true,()=>{ChangeMode(false);SelectTrack(cameraTrack);});
             Action(panelStrip,"照明",true,()=>{ChangeMode(false);SelectTrack(lightTrack);});
             showRibbonCurve=WorkspacePreferences.GetInt("Ribbon.ShowCurve")!=0;
@@ -85,15 +85,8 @@ namespace AvaAvaDance
         }
         void BindTransport()
         {
-            void BindText(TextField field,TextField other,bool start)
-            {
-                field.RegisterValueChangedCallback(e=>{
-                    if(start)transportStart=e.newValue;else transportEnd=e.newValue;
-                    other.SetValueWithoutNotify(e.newValue);
-                });
-            }
-            BindText(playFrom,ribbonStart,true);BindText(ribbonStart,playFrom,true);
-            BindText(playTo,ribbonEnd,false);BindText(ribbonEnd,playTo,false);
+            playFrom.RegisterValueChangedCallback(e=>transportStart=e.newValue);
+            playTo.RegisterValueChangedCallback(e=>transportEnd=e.newValue);
             repeat.RegisterValueChangedCallback(e=>{transportRepeat=e.newValue;ribbonRepeat.SetValueWithoutNotify(e.newValue);});
             ribbonRepeat.RegisterValueChangedCallback(e=>{transportRepeat=e.newValue;repeat.SetValueWithoutNotify(e.newValue);});
         }

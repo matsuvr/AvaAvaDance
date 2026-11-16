@@ -23,27 +23,31 @@ namespace AvaAvaDance
         [Serializable] class MovieSettings
         {
             public int width=640, height=360, fps=30;
+            public int imageWidth, imageHeight;
             public string first="", last="";
             public bool audio=true;
-            public bool Valid => width>=16 && height>=16 && width<=4096 && height<=4096 &&
-                (width|height)%2==0 && fps>=1 && fps<=120;
+            public bool Valid => OutputPreset.ValidMovieSize(width,height) && OutputPreset.ValidRate(fps) && imageWidth>=0 && imageHeight>=0;
+            public int ImageWidth => imageWidth>0?imageWidth:width;
+            public int ImageHeight => imageHeight>0?imageHeight:height;
         }
         MovieSettings movie=new MovieSettings();
         bool exporting,cancelExport;
         string movieError;
 
-        void ShowOutputSize()
+        void ShowOutputSize() => ShowOutputSize(CopyOutputSettings(movie));
+
+        void ShowOutputSize(MovieSettings working)
         {
             ShowDialog("出力サイズ",out var body);
-            var w=new IntegerField("幅") {value=movie.width}; var h=new IntegerField("高さ") {value=movie.height};
-            body.Add(w); body.Add(h);
-            var message=new Label(); body.Add(message);
+            AddOutputPresetFields(body,working,()=>ShowOutputSize(working));
+            var message=new Label();message.style.whiteSpace=WhiteSpace.Normal; body.Add(message);
             var row=Box(body,"size-actions","row");
             Action(row,"OK",true,()=> {
-                if(w.value<16 || h.value<16 || w.value>4096 || h.value>4096 || ((w.value|h.value)&1)!=0) {
-                    message.text="幅・高さは16～4096の偶数で指定してください。"; return;
+                if(!working.Valid) {
+                    message.text="幅・高さ（16～4096の偶数）とfps（1～120）を確認してください。"; return;
                 }
-                movie.width=w.value; movie.height=h.value; CloseDialog();
+                movie.width=working.width;movie.height=working.height;movie.fps=working.fps;
+                movie.imageWidth=movie.imageHeight=0;CloseDialog();
             });
             Action(row,"キャンセル",true,CloseDialog);
         }
@@ -54,23 +58,33 @@ namespace AvaAvaDance
             try {
                 string format=avi ? "AVI" : "MP4";
                 var path=Import.PackageFileDialog.Save(format+"出力",avi ? "avi" : "mp4"); if(path==null)return;
-                ShowDialog(format+"出力設定",out var body);
-                body.Add(new Label("録画サイズ　"+movie.width+" × "+movie.height+" Pixel"));
-                var fps=new IntegerField("フレームレート") {value=movie.fps}; body.Add(fps);
-                var range=Box(body,"movie-range","row"); range.Add(new Label("録画フレーム"));
-                var from=new TextField {value=movie.first}; var to=new TextField {value=movie.last};
-                range.Add(from); range.Add(new Label("～")); range.Add(to);
-                var audio=new Toggle("WAVEも出力する") {value=movie.audio && soundtrack.clip!=null}; audio.SetEnabled(soundtrack.clip!=null); body.Add(audio);
-                body.Add(new Label(avi ? "ビデオ形式　非圧縮RGB" : "ビデオ圧縮コーデック　H.264"));
-                var error=new Label(); body.Add(error);
-                var row=Box(body,"movie-actions","row");
-                Action(row,"OK",true,()=> {
-                    var config=new MovieSettings {width=movie.width,height=movie.height,fps=fps.value,first=from.value,last=to.value,audio=audio.value};
-                    if(!MovieRange(config,out _,out _)) {error.text="録画範囲またはfps（1～120）を確認してください。";return;}
-                    movie=config; StartCoroutine(ExportMovie(path,config));
-                });
-                Action(row,"キャンセル",true,CloseDialog);
+                ShowMovieSettings(path,CopyOutputSettings(movie));
             } catch(Exception ex) { ReportActionError((avi?"AVI":"MP4")+"出力中止　",ex); }
+        }
+
+        void ShowMovieSettings(string path, MovieSettings working)
+        {
+            bool avi=path.EndsWith(".avi",StringComparison.OrdinalIgnoreCase);
+            ShowDialog((avi?"AVI":"MP4")+"出力設定",out var body);
+            AddOutputPresetFields(body,working,()=>ShowMovieSettings(path,working));
+            var range=Box(body,"movie-range","row");range.Add(new Label("録画フレーム"));
+            var from=new TextField{value=working.first};var to=new TextField{value=working.last};
+            range.Add(from);range.Add(new Label("～"));range.Add(to);
+            from.RegisterValueChangedCallback(e=>working.first=e.newValue);
+            to.RegisterValueChangedCallback(e=>working.last=e.newValue);
+            var audio=new Toggle("WAVEも出力する"){value=working.audio && soundtrack.clip!=null};
+            audio.SetEnabled(soundtrack.clip!=null);body.Add(audio);
+            audio.RegisterValueChangedCallback(e=>working.audio=e.newValue);
+            body.Add(new Label(avi?"ビデオ形式　非圧縮RGB":"ビデオ圧縮コーデック　H.264"));
+            var error=new Label{name="output-error"};error.style.whiteSpace=WhiteSpace.Normal;body.Add(error);
+            var row=Box(body,"movie-actions","row");
+            Action(row,"OK",true,()=>{
+                if(!MovieRange(working,out _,out _)) {
+                    error.text="録画範囲、幅・高さ（16～4096の偶数）、fps（1～120）を確認してください。";return;
+                }
+                movie=CopyOutputSettings(working);StartCoroutine(ExportMovie(path,movie));
+            });
+            Action(row,"キャンセル",true,CloseDialog);
         }
 
         bool MovieRange(MovieSettings s,out int first,out int last)

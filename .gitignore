@@ -55,6 +55,10 @@ ExportedObj/
 !/Tests/MotionSizingHarness/MotionSizingHarness.csproj
 !/Tests/MotionSizingHarness/Core/Ava.MotionSizing.csproj
 !/Tests/VsqxHarness/VsqxHarness.csproj
+!/Tests/PlaybackHarness/PlaybackHarness.csproj
+!/Tests/PoseHarness/PoseHarness.csproj
+!/Tests/TimelineRetimingHarness/TimelineRetimingHarness.csproj
+!/Tests/TimelineRetimingHarness/Core/TimelineRetiming.Core.csproj
 !/Extensions/**/*.csproj
 !/Examples/**/*.csproj
 *.unityproj

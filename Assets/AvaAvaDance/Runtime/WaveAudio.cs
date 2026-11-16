@@ -161,10 +161,10 @@ namespace AvaAvaDance
         void PlayAudioAt(int atFrame, bool scrub = false)
         {
             if (soundtrack.clip == null || muteWave) return;
-            int sample = (int)((long)atFrame * soundtrack.clip.frequency / 30);
+            long sample = (long)atFrame * soundtrack.clip.frequency / 30;
             soundtrack.Stop();
             if (sample >= soundtrack.clip.samples) return;
-            soundtrack.timeSamples = sample;
+            soundtrack.timeSamples = (int)sample;
             soundtrack.Play();
             if (scrub) soundtrack.SetScheduledEndTime(AudioSettings.dspTime + 1.0/30);
         }

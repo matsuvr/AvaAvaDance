@@ -240,6 +240,7 @@ namespace AvaAvaDance
                 if (key != KeyCode.Escape) return;
                 if (exporting) cancelExport = true;
                 else if (shaderDownloadCancellation != null) shaderDownloadCancellation.Cancel();
+                else if (modal.userData is Action cancelDialog) cancelDialog();
                 else CloseDialog();
             }
             else if(ribbonProfile && key==KeyCode.Delete && !repeatKey && !e.ctrlKey && !e.shiftKey && !e.altKey &&
@@ -252,7 +253,7 @@ namespace AvaAvaDance
                     e.ctrlKey && (key==KeyCode.Period || key==KeyCode.Comma);
                 var resolved=symbol.Present && !e.ctrlKey?symbol.Transform:key;
                 var mods=e.modifiers&(EventModifiers.Control|EventModifiers.Shift|EventModifiers.Alt|EventModifiers.Command);
-                var preset=ribbonKeys.FirstOrDefault(k=>k.key==resolved && k.mods==mods);
+                var preset=ribbonKeys.FirstOrDefault(k=>k.HasDefault && k.key==resolved && k.mods==mods);
                 if(Replacement(preset?.id,CurrentKeyArea(e.target as VisualElement))==null &&
                     (!repeatKey || repeatable) && !RibbonShortcut(resolved,e.ctrlKey,e.shiftKey,e.altKey || e.commandKey) && !RouteNamedKey(e,true,repeatKey))return;
             }

@@ -8,7 +8,7 @@ namespace AvaAvaDance
 {
     public sealed partial class DanceApp
     {
-        const int MaxFrame = 600000, RowHeight = 19, NameWidth = 96;
+        const int MaxFrame = PlaybackRange.FrameLimit, RowHeight = 19, NameWidth = 96;
         int FrameWidth => ribbonProfile ? ribbonFrameWidth : 12;
         readonly List<MotionTrack> sceneTracks = new List<MotionTrack>();
 
@@ -27,6 +27,7 @@ namespace AvaAvaDance
         TextField playFrom, playTo;
         bool playing;
         int playStart, playEnd;
+        PlaybackRange playbackRange;
         double startedAt;
 
         struct KeyChange
@@ -487,8 +488,29 @@ namespace AvaAvaDance
         void TogglePlayback()
         {
             if (playing) { StopPlayback(); return; }
+            if (ribbonProfile) { StartPlayback(PlaybackRange.FromCurrent(frame, PlaybackLastFrame)); return; }
             if (!ReadLimit(transportStart, 0, out playStart) || !ReadLimit(transportEnd, Mathf.Max(LastFrame(), AudioLastFrame), out playEnd) || playEnd < playStart)
             { status.text = "再生範囲には開始 ≦ 終了のフレーム番号を入力してください。"; return; }
+            StartPlayback(PlaybackRange.Specified(playStart, playEnd));
+        }
+
+        int PlaybackLastFrame => Mathf.Max(LastFrame(), AudioLastFrame);
+
+        void PlayFromBeginning()
+        {
+            if (playing) { StopPlayback(); return; }
+            StartPlayback(PlaybackRange.FromBeginning(PlaybackLastFrame));
+        }
+
+        void PlayBetweenBookmarks()
+        {
+            if (playing) { StopPlayback(); return; }
+            StartPlayback(PlaybackRange.BetweenBookmarks(frame, PlaybackLastFrame, bookmarks));
+        }
+
+        void StartPlayback(PlaybackRange range)
+        {
+            playbackRange = range; playStart = range.First; playEnd = range.Last;
             playing = true; InvalidateDynamics();
             Seek(playStart);
             startedAt = Time.unscaledTimeAsDouble;
@@ -515,12 +537,10 @@ namespace AvaAvaDance
         void AdvancePlayback(double now)
         {
             long offset = (long)Math.Floor(Math.Max(0, now - startedAt) * 30);
-            int length = playEnd - playStart + 1;
-            if (offset >= length && !transportRepeat) { Seek(playEnd); StopPlayback(); return; }
-            int next = playStart + (int)(offset % length);
-            long cycle = offset / length;
-            if (cycle != audioCycle) { audioCycle = cycle; PlayAudioAt(next); }
-            if (next != frame) Seek(next);
+            var step = playbackRange.At(offset, transportRepeat);
+            if (step.Finished) { Seek(step.Frame); StopPlayback(); return; }
+            if (step.Cycle != audioCycle) { audioCycle = step.Cycle; PlayAudioAt(step.Frame); }
+            if (step.Frame != frame) Seek(step.Frame);
         }
 
         void StopPlayback()

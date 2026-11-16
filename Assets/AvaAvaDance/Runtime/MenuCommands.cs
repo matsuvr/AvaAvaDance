@@ -20,9 +20,9 @@ namespace AvaAvaDance
             Bind(Command.SaveAs, () => SaveProjectCommand(true));
             Bind(Command.ExportAvi, () => ChooseMovie(true));
             Bind(Command.ExportMp4, () => ChooseMovie(false));
-            Bind(Command.ExportImage, () => FileAction("画像ファイルに出力", DirectXImage.Extensions, true, ExportImage));
-            Bind(Command.LoadPose, () => FileAction("ポーズデータ読込", "vpd", false, LoadVpd), ModelBones);
-            Bind(Command.SavePose, () => FileAction("ポーズデータ保存", "vpd", true, SaveVpd), ModelBones);
+            Bind(Command.ExportImage, ChooseImageOutput);
+            Bind(Command.LoadPose, () => FileAction("ポーズデータ読込", "avapose", false, LoadPoseFile), ModelBones);
+            Bind(Command.SavePose, () => FileAction("ポーズデータ保存", "avapose", true, SavePoseFile), ModelBones);
             Bind(Command.LoadMotion, () => FileAction("モーションデータ読込", "vrma;bvh;fbx;anim;avamotion", false, ImportMotionFile));
             Bind(Command.SaveMotion, () => FileAction("モーションデータ保存", "avamotion", true, SaveMotion));
             Bind(Command.LoadAvaMotion, () => FileAction("AvaAvaDanceモーション読込", "avamotion", false, LoadMotion));
@@ -51,6 +51,7 @@ namespace AvaAvaDance
 
         void BindEditCommands()
         {
+            Bind(Command.ScaleKeyframes, ShowTimeScaleDialog, CanScaleKeyframes);
             Bind(Command.EditTransform, () => NumericTransform(), () => !modelMode || actor.selectedBone != null);
             Bind(Command.ZeroAngles, () => {
                 if (modelMode) { var p = actor.selectedBone.Track.Current; p.Rotation = Quaternion.identity; PreviewBone(p); }

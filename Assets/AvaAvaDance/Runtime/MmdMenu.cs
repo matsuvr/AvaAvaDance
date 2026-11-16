@@ -4,7 +4,8 @@ namespace AvaAvaDance
 {
     internal enum Command
     {
-        Separator, File, Edit, View, Background, Facial, Physics, Help, Enhance,
+        ScaleKeyframes = 1000,
+        Separator = 0, File, Edit, View, Background, Facial, Physics, Help, Enhance,
         Quit,
         About,
         LoadPose,
@@ -158,6 +159,7 @@ namespace AvaAvaDance
                 new Entry(Command.DeleteBoneColumn, "ボーン・カメラの1フレームを削除 (K)", "Remove bone or camera frame (K)"),
                 new Entry(Command.InsertMorph, "表情・照明に1フレーム挿入 (U)", "Insert expression or light frame (U)"),
                 new Entry(Command.DeleteMorphColumn, "表情・照明の1フレームを削除 (J)", "Remove expression or light frame (J)"),
+                new Entry(Command.ScaleKeyframes, "フレーム位置の拡大・縮小…", "Scale keyframe timing…"),
                 Separator,
                 new Entry(Command.SelectBones, "ボーンのキーを全選択(&N)", "Select bone keys(&N)"),
                 new Entry(Command.SelectMorphs, "表情のキーを全選択(&E)", "Select expression keys(&E)"),
