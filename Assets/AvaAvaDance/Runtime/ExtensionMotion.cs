@@ -44,7 +44,9 @@ namespace AvaAvaDance
             }else throw new ArgumentException("トラックの種類を取得できません。");
             key.Curves=curves?.channels?.Select(e=>new BezierCurve{Custom=e.custom,First=new N.Vector2(e.a.x,e.a.y),Second=new N.Vector2(e.b.x,e.b.y)}).ToArray();
             key.SourceName=source?.name?.ToArray();key.SourceIK=source?.ik?.ToArray();
-            key.RawInterpolation=curves?.raw?.ToArray();key.ModifiedChannels=curves?.modified??0;
+            // JsonUtility restores absent raw bytes as an empty array. The SDK
+            // represents no source interpolation with null, not a zero-byte block.
+            key.RawInterpolation=curves?.raw?.Length>0?curves.raw.ToArray():null;key.ModifiedChannels=curves?.modified??0;
             return key;
         }
 

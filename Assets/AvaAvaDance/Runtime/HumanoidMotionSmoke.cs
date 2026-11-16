@@ -98,6 +98,8 @@ namespace AvaAvaDance
                 ApplyHistory(false);
                 if(tracks.Values.Any(t=>t.LastFrame!=0)) throw new Exception("Undo "+ext);
                 ImportMotionFile(path);
+                CheckImportedMotionSizing(startFrame,endFrame,Path.Combine(output,ext+"-reloaded-sized.avamotion"));
+                log.AppendLine(ext+": sizing after native motion reload");
                 foreach(var (id,samples) in baked)
                     for(int i=0;i<samples.Length;i++)
                     {
@@ -111,6 +113,8 @@ namespace AvaAvaDance
                 RestoreMotion(baseline,true);
             }
             OpenProject(Path.Combine(output,"Go Wild.avadance"));
+            CheckImportedMotionSizing(0,521,Path.Combine(output,"project-reloaded-sized.avamotion"));
+            log.AppendLine("project: sizing after saved project reload");
             SetFrame(135);
             foreach (var (id,samples) in reference)
             {
