@@ -62,8 +62,6 @@ namespace AvaAvaDance
             finally { if (File.Exists(temp)) File.Delete(temp); }
         }
 
-        void ExportImage(string path) => WritePreview(path);
-
         const int MaxMotionBytes = 16 * 1024 * 1024;
         const int MaxAvaMotionBytes = 128 * 1024 * 1024;
         void SaveMotion(string path)

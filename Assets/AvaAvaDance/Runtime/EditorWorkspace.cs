@@ -108,10 +108,11 @@ namespace AvaAvaDance
             {
                 case 0:
                     Group("作品");Add("新規",Command.New); Add("開く",Command.Open); Add("名前を付けて保存",Command.SaveAs);
-                    Group("レンダリング");Add("画像出力",Command.ExportImage); Add("MP4出力",Command.ExportMp4);
+                    Group("レンダリング");Add("画像出力",Command.ExportImage);Add("AVI出力",Command.ExportAvi); Add("MP4出力",Command.ExportMp4);
                     Group("モデル");ProfileAction(group,"モデル読込",PickPackage);
-                    ProfileAction(group,"リグ保存",()=>FileAction("リグ保存","avarig",true,p=>WriteFile(p,System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(actor.rigProfile,true)))),()=>actor.rigProfile!=null);ProfileAction(group,"アクセサリ読込",()=>FileAction("アクセサリ読込","x;vac",false,LoadAccessory));
+                    ProfileAction(group,"リグ保存",()=>FileAction("リグ保存","avarig",true,p=>WriteFile(p,System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(actor.rigProfile,true)))),()=>actor.rigProfile!=null);ProfileAction(group,"アクセサリ読込",()=>FileAction("アクセサリ読込","x",false,ImportAccessoryFile));
                     Group("読み込み／保存");Add("モーション読込",Command.LoadMotion); Add("モーション保存",Command.SaveMotion);
+                    Add("ポーズ読込",Command.LoadPose);Add("ポーズ保存",Command.SavePose);
                     Group("オーディオ");Add("WAV読込",Command.LoadWave);
                     break;
                 case 1:
@@ -121,6 +122,7 @@ namespace AvaAvaDance
                     ProfileAction(group,"貼り付け",()=>PasteOriginalKeys(false),CanPasteOriginal);
                     Group("列操作");ProfileAction(group,"列挿入",()=>ShiftRibbonColumn(true));
                     ProfileAction(group,"列削除",()=>ShiftRibbonColumn(false));
+                    Add("拡大・縮小",Command.ScaleKeyframes);
                     Group("ブックマーク");ProfileAction(group,"追加・削除",ToggleBookmark);ProfileAction(group,"前に移動",()=>JumpBookmark(false),()=>bookmarks.Any(f=>f<frame));ProfileAction(group,"次に移動",()=>JumpBookmark(true),()=>bookmarks.Any(f=>f>frame));
                     Group("ボーン"); ProfileAction(group,"未登録選択",()=>SelectBoneSet(true),ModelBones);
                     ProfileAction(group,"ポーズ反転",MirrorDraft,ModelBones);

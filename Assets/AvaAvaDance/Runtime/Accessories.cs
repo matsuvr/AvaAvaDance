@@ -99,7 +99,7 @@ namespace AvaAvaDance
                 var prop=props.Find(p=>p.Data.name==e.newValue); if(prop!=null)SelectTrack(prop.Track);
             });
             var row=Box(accessory,"prop-buttons","row");
-            Action(row,"読込",true,()=>FileAction("アクセサリ読込","x;vac",false,LoadAccessory));
+            Action(row,"読込",true,()=>FileAction("アクセサリ読込","x",false,ImportAccessoryFile));
             propRemove=Action(row,"削除",false,()=>RemoveProp(activeProp));
             propVisible=new Toggle("表示");accessory.Add(propVisible);
             propVisible.RegisterValueChangedCallback(e=>EditProp(p=>{p.Hidden=!e.newValue;return p;}));
@@ -183,6 +183,13 @@ namespace AvaAvaDance
             t.localScale=Vector3.one*((prop.Data.meshUnit>0?prop.Data.meshUnit:SceneUnit)*pose.Scale);
         }
         void LateUpdate() {foreach(var prop in props)if(prop.Track.Current.Parent!=null || prop.Track.Current.ParentId!=null)PositionProp(prop,prop.Track.Current);}
+        void ImportAccessoryFile(string path)
+        {
+            if(!string.Equals(Path.GetExtension(path),".x",StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("DirectXの .x アクセサリを選択してください。");
+            LoadAccessory(path);
+        }
+
         void LoadAccessory(string path)
         {
             if(props.Count>=255)throw new IOException("アクセサリ上限です。");
