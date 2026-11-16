@@ -201,8 +201,8 @@ namespace AvaAvaDance
             physicsEngine=PhysicsEngine.Bullet; physicsMode=PhysicsMode.OnOff; physicalFloor=groundShadow=actor.modelSelfShadow=true; forceOnPlayback=showBodies=false;
             groundBrightness=1;transparentGround=true;showSelfShadow=true;
             RestoreView(new Project());
-            scrubSound=muteWave=false; soundVolume.value=1; gridToggle.value=true;
-            playFrom.value="";playTo.value="";repeat.value=false;
+            scrubSound=muteWave=false; soundtrack.volume=1;soundVolume.SetValueWithoutNotify(1);gridToggle.value=true;
+            RestoreTransportSettings("", "", false);
             modelView=CameraPose.Initial;front=Vector3.forward;useCameraView=false;movie=new MovieSettings();
             RestoreAdditionalLights(null);
             foreach(var t in sceneTracks) {t.ClearSources();t.Layers.Clear();t.ActiveLayer=t.ActiveClip=null;foreach(int f in t.Frames.Skip(1).ToArray())t.Write(f,null);}
@@ -440,9 +440,9 @@ namespace AvaAvaDance
             groundBrightness=p.groundBrightness;transparentGround=p.transparentGround;showSelfShadow=p.showSelfShadow;
             groundShadow=p.groundShadow;actor.modelSelfShadow=p.selfShadow;modelView=p.editorView;useCameraView=p.fromCamera;
             audioStartFrame=Mathf.Clamp(p.audioStartFrame,0,MaxFrame);
-            soundtrack.Stop(); soundtrack.clip=clip; soundVolume.value=p.volume; muteWave=p.mute;scrubSound=p.scrub;
+            soundtrack.Stop(); soundtrack.clip=clip; soundtrack.volume=p.volume;soundVolume.SetValueWithoutNotify(p.volume);muteWave=p.mute;scrubSound=p.scrub;
             peaks=clip!=null?ReadWaveform(clip):Array.Empty<Vector2>();waveform.MarkDirtyRepaint();
-            movie=p.output;playFrom.value=p.start??"";playTo.value=p.end??"";repeat.value=p.repeat;gridToggle.value=p.grid;
+            movie=p.output;RestoreTransportSettings(p.start,p.end,p.repeat);gridToggle.value=p.grid;
             ChangeMode(p.modelMode);SelectTrack(VisibleTracks.Find(t=>t.Name==p.selection)??VisibleTracks.FirstOrDefault());
             BindLinks(p.constraints??Array.Empty<BoneLink>());ResetHistory();InvalidateDynamics();SetFrame(p.frame);
             RestoreMotion(p.sceneDraft,false,true);

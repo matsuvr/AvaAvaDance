@@ -141,6 +141,7 @@ namespace AvaAvaDance
                 if(args.Contains("-avaMaterialSmoke"))CheckPrefabMaterials(model,prefab,package,directory);
                 if(args.Contains("-avaPhysBoneSmoke"))CheckPhysBones();
                 if(args.Contains("-avaPhysicsBakeSmoke"))CheckPhysicsBaking(directory);
+                if(args.Contains("-avaProjectTransportSmoke"))CheckProjectTransportRestore(directory);
                 if(args.Contains("-avaBulletSmoke"))CheckBulletWorkflow(directory);
                 Debug.Log("AVA_ROOT_RECT " + GetComponent<UnityEngine.UIElements.UIDocument>().rootVisualElement.worldBound + " VIEW=" + viewport.worldBound);
                 Debug.Log("AVA_MOTION_TRACKS bones=" + actor.bones.Count + " morphs=" + morphGroups.Sum(g => g.Tracks.Count) +

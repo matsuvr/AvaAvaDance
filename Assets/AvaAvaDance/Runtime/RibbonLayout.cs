@@ -90,6 +90,13 @@ namespace AvaAvaDance
             repeat.RegisterValueChangedCallback(e=>{transportRepeat=e.newValue;ribbonRepeat.SetValueWithoutNotify(e.newValue);});
             ribbonRepeat.RegisterValueChangedCallback(e=>{transportRepeat=e.newValue;repeat.SetValueWithoutNotify(e.newValue);});
         }
+
+        void RestoreTransportSettings(string first, string last, bool loop)
+        {
+            transportStart = first ?? ""; transportEnd = last ?? ""; transportRepeat = loop;
+            playFrom.SetValueWithoutNotify(transportStart); playTo.SetValueWithoutNotify(transportEnd);
+            repeat.SetValueWithoutNotify(loop); ribbonRepeat.SetValueWithoutNotify(loop);
+        }
         void PresentRibbonLayout(bool moving)
         {
             transport.EnableInClassList("hidden",!moving);panelStrip.EnableInClassList("hidden",!moving);
