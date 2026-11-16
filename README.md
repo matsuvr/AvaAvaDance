@@ -40,6 +40,7 @@ VRM 1.0 の MToon・Unlit・PBR は材質ごとに読み分けます。モデル
 - 「縦選択」は同じフレームにあるキーをまとめて選択します。「範囲選択」は指定範囲の登録キーを対象にします。コピー、ペースト、削除、「元に戻す」「やり直し」はまとめて操作できます。フレーム0のキーは保持されます。
 - 「編集」の空フレーム挿入・列フレーム削除は、ボーン／表情またはカメラ／照明を個別にずらします。挿入／削除は `I`・`K` と `U`・`J`、全表情登録は `H` です。
 - **Humanoid モーションを読み込む**には、モデル編で開始フレームに移動し、「ファイル → モーションデータ読込」から `.vrma`、`.bvh`、`.fbx`、Unity の `.anim` を選びます。腰移動と関節回転を選択モデルの体格に合わせ、30 fps の編集キーに変換します。たとえば42フレームで1秒のモーションを開くと、42～72フレームを編集できます。足の動きに関係するIKは「表示・IK」キーで自動的にOFFになります。VRMAでは対応する表情と視線も取り込みます。
+- **モーションサイジング**は「編集 → モーションサイジング」、リボン形式では「編集」の同名ボタンから開きます。Unity内で、読み込み済みのモーションを同じモデルで調整したり、体格の異なるモデルへ適用したりできます。全フレーム／指定範囲を対象に、移動量・足位置・手の接触などを補正し、一度のUndoで戻せます。元のファイル形式に依存せず、保存した `.avamotion` にも使えます。[操作・補正範囲](Docs/motion-sizing.md)
 - **モーションを保存する**には「ファイル → モーションデータ保存」で `.avamotion` を選びます。同じモデルに再読込でき、元のモーションファイルは不要です。モデルやカメラ、音声も含めたシーン全体は `.avadance` で保存できます。
 - 「ポーズデータ読込／保存」ではVPDを扱います。
 - ファイル、編集、表示、背景、表情、物理演算、ヘルプの各メニューは、順に `Alt+F/D/V/B/M/P/H` で開きます。括弧内のキーで項目を選択できます。「ヘルプ → モデル拡張」にはモデル別の設定をまとめています。「ヘルプ → English Mode」でメニューを英語に切り替え、各トラックに設定した英語名を表示できます。
@@ -137,6 +138,7 @@ Builds/Windows/AvaAvaDance.exe -batchmode -avaProjectSmoke Builds/ProductionTest
 
 ```powershell
 dotnet run --project Tests/ExtensionHarness
+dotnet run --project Tests/MotionSizingHarness
 python Tests/Extensions/make_extension_fixtures.py
 Builds/Windows/AvaAvaDance.exe -batchmode -avaWorkspaceSmoke -avaProfileOutputSmoke -avaScreenHistorySmoke -avaSmokePackage Tests/triangle.unitypackage -avaSmokeOutput Builds/Checks/Workspace
 Builds/Windows/AvaAvaDance.exe -batchmode -avaExtensionSmoke -avaSmokePackage Tests/triangle.unitypackage -avaSmokeOutput Builds/Checks/Host

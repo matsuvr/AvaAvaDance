@@ -12,6 +12,7 @@ namespace AvaAvaDance
             public Transform Joint;
             public MotionTrack<BonePose> Track;
             public Quaternion RestRotation, EditingBasis;
+            public int RigJointIndex=-1;
         }
         enum BoneTool { Select, Rotate, Move }
 
@@ -82,7 +83,8 @@ namespace AvaAvaDance
                         vrmGaze.Runtime.LookAt.SetYawPitchManually(angles.y, -angles.x);
                     }
                 });
-                actor.bones.Add(new BoneBinding { Joint = joint, Track = track, RestRotation = restRotation, EditingBasis=ChildBasis(joint) }); actor.modelTracks.Add(track);
+                actor.bones.Add(new BoneBinding { Joint = joint, Track = track, RestRotation = restRotation, EditingBasis=ChildBasis(joint),
+                    RigJointIndex=actor.rigJointIndices.TryGetValue(joint,out int rigIndex)?rigIndex:-1 }); actor.modelTracks.Add(track);
             }
             var weighted = new HashSet<Transform>(actor.avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true)
                 .SelectMany(s => s.bones.Where(j => j != null && j != s.transform)));

@@ -28,6 +28,10 @@ namespace Ava.Extensions
     public sealed class TrackSnapshot
     {
         public string Owner, Id, Name;
+        // Bone identity in the owner's RigProfile.joints/editRest arrays. Display names
+        // may be duplicated or localized and must not be used as hierarchy identity.
+        public int RigJointIndex=-1;
+        public string Role;
         public TrackChannel Channel;
         public long Revision;
         public int[] Frames;

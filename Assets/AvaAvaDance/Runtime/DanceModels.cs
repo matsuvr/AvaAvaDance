@@ -34,6 +34,8 @@ namespace AvaAvaDance
         sealed class Actor
         {
             internal Ava.Extensions.RigProfile rigProfile;
+            internal Dictionary<Transform,int> rigJointIndices=new Dictionary<Transform,int>();
+            internal Matrix4x4 rigToScene=Matrix4x4.identity;
             internal EffectController controller;
             internal BoneBinding logicalPelvis;
             internal readonly List<MotionTrack<BonePose>> logicalControls=new List<MotionTrack<BonePose>>(),pelvisControls=new List<MotionTrack<BonePose>>();

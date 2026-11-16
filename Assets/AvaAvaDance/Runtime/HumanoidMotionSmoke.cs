@@ -91,11 +91,15 @@ namespace AvaAvaDance
                 Debug.Log(log.ToString());
                 if(ext!="anim" && (rms>0.3 || hipMax>.005)) throw new Exception(log.ToString());
                 if(ext=="anim" && (rms>15 || hipMax>.15f)) throw new Exception(log.ToString());
+                CheckImportedMotionSizing(startFrame,endFrame,Path.Combine(output,ext+"-sized.avamotion"));
+                log.AppendLine(ext+": native sizing, one-step undo/redo and sized .avamotion round trip");
                 string path=Path.Combine(output,ext+".avamotion");
                 SaveMotion(path);
                 ApplyHistory(false);
                 if(tracks.Values.Any(t=>t.LastFrame!=0)) throw new Exception("Undo "+ext);
                 ImportMotionFile(path);
+                CheckImportedMotionSizing(startFrame,endFrame,Path.Combine(output,ext+"-reloaded-sized.avamotion"));
+                log.AppendLine(ext+": sizing after native motion reload");
                 foreach(var (id,samples) in baked)
                     for(int i=0;i<samples.Length;i++)
                     {
@@ -109,6 +113,8 @@ namespace AvaAvaDance
                 RestoreMotion(baseline,true);
             }
             OpenProject(Path.Combine(output,"Go Wild.avadance"));
+            CheckImportedMotionSizing(0,521,Path.Combine(output,"project-reloaded-sized.avamotion"));
+            log.AppendLine("project: sizing after saved project reload");
             SetFrame(135);
             foreach (var (id,samples) in reference)
             {
@@ -117,6 +123,49 @@ namespace AvaAvaDance
                     throw new Exception("Project round trip "+id);
             }
             return "PASS\n"+log;
+        }
+
+        void CheckImportedMotionSizing(int first,int last,string output)
+        {
+            var snapshot=SnapshotMotion();
+            foreach(var binding in actor.bones.Where(b=>b.RigJointIndex>=0)){
+                var track=snapshot.Tracks.Single(t=>t.Owner==actor.id && t.Id==binding.Track.Id);
+                if(track.RigJointIndex!=binding.RigJointIndex ||
+                    actor.rigProfile.joints[track.RigJointIndex].name!=binding.Joint.name)
+                    throw new Exception("Native sizing joint identity");
+            }
+            var request=new Ava.MotionSizing.NativeSizingRequest{
+                SourceOwner=actor.id,TargetOwner=actor.id,FirstFrame=first,LastFrame=last,
+                Options=new Ava.MotionSizing.NativeSizingOptions{
+                    MovementScale=.8f,MatchFeet=false,AlignHands=false,Twist=false
+                }
+            };
+            string Content()=>JsonUtility.ToJson(CaptureMotion(true));
+            var original=CaptureMotion(true);string before=Content();int history=undo.Count,playhead=frame;
+            var undoBefore=undo.Reverse().ToArray();var redoBefore=redo.Reverse().ToArray();
+            try{
+                var result=Ava.MotionSizing.NativeMotionSizing.Calculate(snapshot,actor.rigProfile,actor.rigProfile,request,System.Threading.CancellationToken.None);
+                if(result.Edits.Length==0)throw new Exception("Native sizing did not change imported movement");
+                ApplyMotionChanges(result.Document,result.Edits);
+                string after=Content();
+                if(undo.Count!=history+1 || before==after)throw new Exception("Native sizing transaction");
+                ApplyHistory(false);
+                if(Content()!=before)throw new Exception("Native sizing undo");
+                ApplyHistory(true);
+                if(Content()!=after)throw new Exception("Native sizing redo");
+                SaveMotion(output);
+                ApplyHistory(false);
+                LoadMotion(output);
+                if(Content()!=after)throw new Exception("Sized native motion round trip");
+            }finally{
+                // Loading a motion intentionally discards history for its tracks. Keep
+                // this nested smoke independent of the caller's import/undo checks.
+                RestoreMotion(original,true);
+                undo.Clear();foreach(var item in undoBefore)undo.Push(item);
+                redo.Clear();foreach(var item in redoBefore)redo.Push(item);
+                SetFrame(playhead);
+            }
+            if(Content()!=before)throw new Exception("Native sizing smoke restoration");
         }
 
         // Quaternion.Angle rounds small discrepancies down to zero.
