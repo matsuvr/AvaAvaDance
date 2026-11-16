@@ -270,6 +270,8 @@ namespace AvaAvaDance
             ClearToons(); actor.modelOverrides=new ModelOverrides();
             RestoreModelDisplay(); actor.shadowCasters = Array.Empty<Renderer>(); ClearShadowRenderers();
             if (actor.avatar != null) { actor.avatar.SetActive(false); Destroy(actor.avatar); }
+            if (actor.placementRoot != null) Destroy(actor.placementRoot.gameObject);
+            actor.placementRoot = null;
             actor.avatar = null;
             viewportNote?.EnableInClassList("hidden", false);
             removeButton?.SetEnabled(false);

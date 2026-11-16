@@ -84,3 +84,19 @@ MMM マニュアルは、ブックマーク間再生の境界と反復を説明�
 - [MMD 公式 VPVP](https://sites.google.com/view/vpvp/): 配布、作者の解説動画、チュートリアルへの導線。詳細な最新メニュー全件の仕様書としては扱わない。
 
 連番画像や透過アルファ出力については、この調査で参照した MMM マニュアル本文に明記がないため、「本家にある不足機能」という確定項目には数えていない。
+
+## Follow-up: remaining editing tools
+
+The follow-up implementation adds the seven gaps above without adding public MMD file formats:
+
+- Audio start frame: File / Audio start frame (MMM File ribbon). Nonnegative project-frame offset, waveform placement, playback and AVI/MP4 audio alignment. Existing projects default to frame 0.
+- Continuous viewport follow: View / Follow model or bone. Keeps the initial composition and follows the selected target's displacement; target stays fixed when editing selection changes. This is an editing view aid, not a camera animation. Movie export ignores it; still-image export retains the current view.
+- Multiple lights: light panel selector, add/remove, per-light color and direction key registration. Up to eight directional lights including the original main light. Shadows remain owned by the main light; this does not introduce point/spot lights.
+- Physics bake: Physics / Bake physics to keys (MMM Physics ribbon), current model, explicit inclusive range, 30 fps base keys, sequential warm-up from frame zero. Baked keys disable physics; missing boundary guard keys are added one frame outside the range to restore animation/physics state. Existing outside keys remain unchanged. Layers on target bones and overlapping IK chains are rejected rather than silently composed twice. Cancellation does not commit partial keys. The key budget is bounded and the whole edit is one Undo operation.
+- Independent backdrop placement: Background / Background placement, image and video independently, viewport-relative translation and uniform scale. Stored with the project; camera/model keys are unchanged.
+- Clear bookmarks: Edit menu, MMM bookmark ribbon, timeline menu and optional shortcut. Confirms removal, clears notes too, one Undo/Redo, empty set is a no-op.
+- Permanent model placement: Edit / Model placement. A parent transform outside the animated hierarchy applies position (metres) and rotation (degrees), without rewriting existing keys. Saved per model, reversible with Undo/Redo; no automatic rig retargeting.
+
+### Verification boundaries
+
+Pure C# calculations are covered by `Tests/MediaPlacementHarness` and `Tests/PhysicsBakeHarness`; existing playback, retiming and pose harnesses remain applicable. `-avaMenuSmoke` also invokes additional-light, model-placement/follow and bookmark-clear checks using real Unity objects. These are not substitutes for a Unity compilation or interactive rendering/audio test. In particular, validate audio scheduling across range loops, additional lights with each avatar shader, physics bake with Bullet and PhysBone, backdrop export at different aspect ratios, save/reopen and Undo/Redo on the target Unity 2022.3.22f1 build.

@@ -34,6 +34,7 @@ namespace AvaAvaDance
             Add("登録",RegisterSelection);Add("切り取り",CutKeys,EditKeys().Any());Add("コピー",CopyKey,EditKeys().Any());
             Add("貼り付け",()=>PasteOriginalKeys(false),CanPasteOriginal());Add("削除",DeleteKeys,EditKeys().Any());
             Add("ブックマーク",ToggleBookmark);
+            Add("ブックマークをすべて削除…",ConfirmClearBookmarks,bookmarks.Count>0);
             contextLayer.RegisterCallback<PointerDownEvent>(e=>{if(e.target==contextLayer){CloseTimelineMenu();e.StopImmediatePropagation();}});
             contextLayer.Focus();
         }

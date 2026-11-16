@@ -14,8 +14,9 @@ namespace AvaAvaDance
         Vector2[] peaks = Array.Empty<Vector2>();
         bool loadingWave, scrubSound, muteWave;
         long audioCycle;
+        int audioStartFrame;
         Slider soundVolume;
-        int AudioLastFrame => peaks.Length == 0 ? 0 : peaks.Length - 1;
+        int AudioLastFrame => peaks.Length == 0 ? 0 : Mathf.Min(MaxFrame, audioStartFrame + peaks.Length - 1);
 
         void BuildWaveControls(VisualElement playback)
         {
@@ -40,9 +41,11 @@ namespace AvaAvaDance
                 bool audioTab=ribbonProfile && audioDockTab;
                 float offset=audioTab?0:NameWidth;
                 int columns=Mathf.CeilToInt((w-offset)/FrameWidth);
-                for (int col = 0; col < columns && firstFrame + col < peaks.Length; col++)
+                for (int col = 0; col < columns; col++)
                 {
-                    var range = peaks[firstFrame + col];
+                    int sourceFrame = firstFrame + col - audioStartFrame;
+                    if (sourceFrame < 0 || sourceFrame >= peaks.Length) continue;
+                    var range = peaks[sourceFrame];
                     float x = offset + (col + .5f) * FrameWidth;
                     Line(p, new Vector2(x, (.5f - range.y * .48f) * h), new Vector2(x, (.5f - range.x * .48f) * h), new Color(.1f,.32f,.15f));
                 }
@@ -86,8 +89,9 @@ namespace AvaAvaDance
         void ChangeWave(AudioClip incoming,Vector2[] amplitudes)
         {
             var before=CurrentWave;
+            int beforeStart=audioStartFrame;
             var after=incoming==null?null:waves.GetValue(incoming,_=>new WaveState{amplitudes=amplitudes});
-            void Present(WaveState next,AudioClip original=null){
+            void Present(WaveState next,int startFrame,AudioClip original=null){
                 var current=CurrentWave;
                 current?.Capture(soundtrack.clip);
                 var clip=original;
@@ -95,9 +99,10 @@ namespace AvaAvaDance
                 StopPlayback();soundtrack.Stop();var old=soundtrack.clip;soundtrack.clip=clip;
                 if(old!=null)Destroy(old);
                 peaks=next?.amplitudes??Array.Empty<Vector2>();
+                audioStartFrame=startFrame;
                 timelineRevision++;waveform.MarkDirtyRepaint();SyncRibbonSeek();
             }
-            Present(after,incoming);PushOperation(cameraTrack,(_,forward)=>Present(forward?after:before));
+            Present(after,0,incoming);PushOperation(cameraTrack,(_,forward)=>Present(forward?after:before,forward?0:beforeStart));
         }
         void DeleteAudio()
         {
@@ -158,11 +163,40 @@ namespace AvaAvaDance
             return result;
         }
 
+        void ShowAudioPlacement()
+        {
+            ShowDialog("音声クリップの開始位置", out var body);
+            var start = new IntegerField("開始フレーム") { value = audioStartFrame };
+            body.Add(start);
+            body.Add(new Label("0〜600000 フレーム。開始前は無音です。波形・再生・動画出力に適用します。"));
+            Action(body, "適用", true, () => {
+                if (start.value < 0 || start.value > MaxFrame) { status.text = "開始フレームは0〜600000で指定してください。"; return; }
+                SetAudioStartFrame(start.value); CloseDialog();
+            });
+            Action(body, "キャンセル", true, CloseDialog);
+        }
+        void SetAudioStartFrame(int next)
+        {
+            next = Mathf.Clamp(next, 0, MaxFrame);
+            int before = audioStartFrame;
+            if (before == next) return;
+            void Present(int value) {
+                StopPlayback(); soundtrack.Stop(); audioStartFrame = value;
+                timelineRevision++; waveform?.MarkDirtyRepaint(); SyncRibbonSeek();
+            }
+            Present(next);
+            PushOperation(cameraTrack, (_, forward) => Present(forward ? next : before));
+        }
+
         void PlayAudioAt(int atFrame, bool scrub = false)
         {
             if (soundtrack.clip == null || muteWave) return;
-            long sample = (long)atFrame * soundtrack.clip.frequency / 30;
+            long sample = AudioPlacement.SampleAtFrame(atFrame, audioStartFrame, soundtrack.clip.frequency);
             soundtrack.Stop();
+            if (sample < 0) {
+                if (!scrub) { soundtrack.timeSamples = 0; soundtrack.PlayScheduled(AudioSettings.dspTime + (audioStartFrame - atFrame) / 30.0); }
+                return;
+            }
             if (sample >= soundtrack.clip.samples) return;
             soundtrack.timeSamples = (int)sample;
             soundtrack.Play();

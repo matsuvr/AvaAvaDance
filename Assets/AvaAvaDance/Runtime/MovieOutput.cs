@@ -107,25 +107,26 @@ namespace AvaAvaDance
             readonly float volume;
             float[] buffer;
             readonly short[] output;
-            readonly int start;
-            public MovieAudio(AudioClip clip,int first,int fps,float volume)
+            readonly int start, audioStart;
+            public MovieAudio(AudioClip clip,int first,int fps,float volume,int audioStartFrame)
             {
-                this.clip=clip;this.volume=volume;start=first;
+                this.clip=clip;this.volume=volume;start=first;audioStart=audioStartFrame;
                 output=new short[(48000/fps+2)*2];
             }
             public void Write(IntPtr handle,AviWriter avi,int index,int fps)
             {
                 long low=(long)index*48000/fps, high=(long)(index+1)*48000/fps;
                 int count=(int)(high-low);
-                double origin=(start/30.0+low/48000.0)*clip.frequency;
-                int offset=(int)Math.Floor(origin);
+                double origin=AudioPlacement.ExportSampleOrigin(start,audioStart,low,clip.frequency);
+                int offset=(int)Math.Min(clip.samples,Math.Max(0,Math.Floor(origin)));
                 int needed=Math.Min(clip.samples,(int)Math.Ceiling(count*clip.frequency/48000.0)+2);
                 if(buffer==null || buffer.Length!=needed*clip.channels) buffer=new float[needed*clip.channels];
                 Array.Clear(output,0,count*2);
-                if(offset<clip.samples) {
+                if(origin+count*clip.frequency/48000.0>0 && offset<clip.samples) {
                     if(!clip.GetData(buffer,offset)) throw new IOException("WAVサンプルの取得に失敗しました。");
                     for(int i=0;i<count;i++) {
                         double pos=origin-offset+i*clip.frequency/48000.0;
+                        if(pos<0)continue;
                         int a=(int)pos;
                         if(offset+a>=clip.samples)break;
                         int b=offset+a+1<clip.samples?a+1:a;
@@ -169,7 +170,7 @@ namespace AvaAvaDance
                     image=new Texture2D(config.width,config.height,TextureFormat.RGBA32,false);
                     previewCamera.targetTexture=rt; previewCamera.aspect=(float)config.width/config.height;
                     floor.SetActive(false); InvalidateDynamics();
-                    if(config.audio && soundtrack.clip!=null)source=new MovieAudio(soundtrack.clip,first,config.fps,soundtrack.volume);
+                    if(config.audio && soundtrack.clip!=null)source=new MovieAudio(soundtrack.clip,first,config.fps,soundtrack.volume,audioStartFrame);
                     int bitrate=Mathf.Clamp((int)((long)config.width*config.height*config.fps/5),1500000,48000000);
                     if(isAvi)avi=new AviWriter(temp,config.width,config.height,config.fps,count,source!=null);
                     else CheckEncoder(ava_movie_open(temp,config.width,config.height,config.fps,bitrate,source!=null?1:0,out writer));

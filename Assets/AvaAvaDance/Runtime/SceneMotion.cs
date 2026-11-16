@@ -62,6 +62,7 @@ namespace AvaAvaDance
             Action(camera, "登録", true, () => RegisterKey(cameraTrack));
 
             light = Panel(bottom, "light", "照明操作");
+            BuildLightSelector(light);
             string[] labels = { "赤", "緑", "青", "X", "Y", "Z" };
             for (int i = 0; i < labels.Length; i++)
             {
@@ -72,15 +73,17 @@ namespace AvaAvaDance
                 {
                     if (!float.IsFinite(e.newValue)) { SyncControls(); return; }
                     StopPlayback();
-                    var pose = lightTrack.Current;
+                    var target = EditingLight;
+                    var pose = target.Current;
                     if (axis < 3) pose.Color[axis] = Mathf.Round(Mathf.Clamp(e.newValue, 0, 255)) / 255f;
                     else pose.Direction[axis - 3] = Mathf.Clamp(e.newValue, -1, 1);
-                    lightTrack.Preview(pose); SelectTrack(lightTrack);
+                    SetDraftValues(new Dictionary<MotionTrack, object>{{target, pose}});
+                    SelectTrack(target);
                 });
             }
             var actions = Box(light, "light-actions", "row");
-            Action(actions, "初期化", true, () => { StopPlayback(); lightTrack.Preview(LightPose.Initial); SelectTrack(lightTrack); });
-            Action(actions, "登録", true, () => RegisterKey(lightTrack));
+            Action(actions, "初期化", true, () => { var target=EditingLight; SetDraftValues(new Dictionary<MotionTrack,object>{{target,LightPose.Initial}}); SelectTrack(target); });
+            Action(actions, "登録", true, () => RegisterKey(EditingLight));
         }
 
         void BuildViewControls(VisualElement parent)
@@ -114,11 +117,17 @@ namespace AvaAvaDance
 
         void ApplyLight(LightPose lightPose)
         {
-            previewLamp.color = lightPose.Color;
+            ApplySceneLight(previewLamp, lightPose);
+        }
+
+        static void ApplySceneLight(Light lamp, LightPose lightPose)
+        {
+            if (lamp == null) return;
+            lamp.color = lightPose.Color;
             var direction = lightPose.Direction;
-            previewLamp.intensity = direction.sqrMagnitude < .000001f ? 0 : 1.6f;
-            if (previewLamp.intensity > 0)
-                previewLamp.transform.rotation = Quaternion.LookRotation(direction,
+            lamp.intensity = direction.sqrMagnitude < .000001f ? 0 : 1.6f;
+            if (lamp.intensity > 0)
+                lamp.transform.rotation = Quaternion.LookRotation(direction,
                     Mathf.Abs(direction.normalized.y) > .999f ? Vector3.forward : Vector3.up);
         }
 
@@ -129,6 +138,7 @@ namespace AvaAvaDance
             if (previewCamera == null || cameraTrack == null) return;
             var pose = ActiveView;
             Vector3 center = (pose.Center - CameraPose.Initial.Center) * SceneUnit;
+            center += ViewTargetFollowOffset();
             var basis = Quaternion.LookRotation(-front, Vector3.up);
             var rotation = basis * Quaternion.Euler(pose.Angles);
             previewCamera.transform.SetPositionAndRotation(center - rotation * Vector3.forward * (pose.Distance * SceneUnit), rotation);
@@ -192,7 +202,8 @@ namespace AvaAvaDance
         {
             if (cameraTrack == null) return;
             var cam = cameraTrack.Current;
-            var lamp = lightTrack.Current;
+            SyncLightSelector();
+            var lamp = EditingLight.Current;
             positionLabel.text = modelMode ? "ボーン位置" : "カメラ中心";
             var pose = actor.selectedBone?.Track.Current ?? BonePose.Rest;
             Vector3 xyz = modelMode ? pose.Position / BonePositionUnit : cam.Center;

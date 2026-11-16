@@ -42,6 +42,8 @@ namespace AvaAvaDance
             internal VmdSidecar vmdSidecar=new VmdSidecar();
             internal string id = Guid.NewGuid().ToString("N"), label;
             internal GameObject avatar;
+            internal Transform placementRoot;
+            internal Vector3 placementPosition, placementAngles;
             internal UniVRM10.Vrm10Instance vrm;
             internal Transform gaze;
             internal Dictionary<HumanBodyBones, Transform> humanBones;

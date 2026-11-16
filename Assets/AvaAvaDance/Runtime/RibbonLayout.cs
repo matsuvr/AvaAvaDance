@@ -79,7 +79,7 @@ namespace AvaAvaDance
             Action(panelStrip,"モデル",true,()=>{if(drawOrder.Count>0)ChooseMode((actor.avatar!=null?actor:drawOrder[0]).label);else PickPackage();});
             Action(panelStrip,"アクセサリ",true,()=>{ChangeMode(false);if(activeProp!=null)SelectTrack(activeProp.Track);else FileAction("アクセサリ読込","x",false,ImportAccessoryFile);});
             Action(panelStrip,"カメラ",true,()=>{ChangeMode(false);SelectTrack(cameraTrack);});
-            Action(panelStrip,"照明",true,()=>{ChangeMode(false);SelectTrack(lightTrack);});
+            Action(panelStrip,"照明",true,()=>{ChangeMode(false);SelectTrack(EditingLight);});
             showRibbonCurve=WorkspacePreferences.GetInt("Ribbon.ShowCurve")!=0;
             Action(panelStrip,"補間",true,()=>{showRibbonCurve=!showRibbonCurve;WorkspacePreferences.SetInt("Ribbon.ShowCurve",showRibbonCurve?1:0);PresentRibbonLayout(ribbonProfile);});
         }

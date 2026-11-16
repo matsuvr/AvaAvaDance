@@ -16,6 +16,7 @@ namespace AvaAvaDance
             public bool black, information, follow, hidden, translucent, wireframe, noAA, noAniso;
             public bool showImage, showVideo;
             public string imageName, videoName;
+            public BackdropPlacement imagePlacement, videoPlacement;
             public float edgeWidth = -1;
             public bool customEdgeColor;
             public Color edgeColor = Color.black;
@@ -234,6 +235,8 @@ namespace AvaAvaDance
             if (texture != null) {
                 backdropMaterial.SetFloat("_Aspect", texture.width / (float)texture.height / previewCamera.aspect);
                 backdropMaterial.SetColor("_Border", previewCamera.backgroundColor);
+                var placement = CurrentBackdropPlacement(texture == (videoPlayer != null ? videoPlayer.texture : null));
+                backdropMaterial.SetVector("_Placement", new Vector4(placement.x, placement.y, placement.scale, 0));
             }
             if (lastBackdrop == texture && texture != null) return;
             lastBackdrop = texture; backdropCommands.Clear();

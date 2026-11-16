@@ -530,7 +530,7 @@ namespace AvaAvaDance
         {
             PumpMcp();
             PumpExtensions(); PumpSymbolKeys(); UpdateDock(); CompleteProfileSwitch();
-            if (playing) AdvancePlayback(Time.unscaledTimeAsDouble); else if(physicsEngine==PhysicsEngine.Bullet)IdleBullet(); else ForEachActor(calculationOrder,IdleDynamics);
+            if(!physicsBaking){if (playing) AdvancePlayback(Time.unscaledTimeAsDouble); else if(physicsEngine==PhysicsEngine.Bullet)IdleBullet(); else ForEachActor(calculationOrder,IdleDynamics);}
             UpdateViewInfo(); UpdateBackdrop(); detached.Synchronize();
         }
 

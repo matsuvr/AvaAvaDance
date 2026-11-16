@@ -99,6 +99,7 @@ namespace AvaAvaDance
         static readonly RibbonKey[] ribbonKeys={
             new RibbonKey("selection.bonesAndKeys.selectAll","ボーンとキーを全選択",KeyCode.A,EventModifiers.Control),
             new RibbonKey("selection.bones.selectAll","ボーンを全選択",KeyCode.A,EventModifiers.Shift),
+            new RibbonKey("timeline.bookmark.clearAll","ブックマークをすべて削除",KeyCode.None,run:app=>app.ConfirmClearBookmarks()),
             new RibbonKey("timeline.bookmark.next","次のブックマーク",KeyCode.Period,EventModifiers.Control,repeat:true),
             new RibbonKey("timeline.bookmark.previous","前のブックマーク",KeyCode.Comma,EventModifiers.Control,repeat:true),
             new RibbonKey("timeline.bookmark.toggleAtCurrent","ブックマークを追加・削除",KeyCode.M,EventModifiers.Control),

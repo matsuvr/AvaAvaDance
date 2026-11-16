@@ -27,6 +27,7 @@ namespace AvaAvaDance
             Bind(Command.SaveMotion, () => FileAction("モーションデータ保存", "avamotion", true, SaveMotion));
             Bind(Command.LoadAvaMotion, () => FileAction("AvaAvaDanceモーション読込", "avamotion", false, LoadMotion));
             Bind(Command.SaveAvaMotion, () => FileAction("AvaAvaDanceモーション保存", "avamotion", true, SaveMotion));
+            Bind(Command.AudioPlacement, ShowAudioPlacement, ()=>soundtrack.clip!=null && !loadingWave);
             Bind(Command.LoadWave, () => FileAction("WAVファイル読込", "wav", false, p => StartCoroutine(LoadWave(p))), () => !loadingWave);
             Bind(Command.ScrubWave, () => scrubSound = !scrubSound, check: () => scrubSound);
             Bind(Command.MuteWave, () => {
@@ -51,6 +52,11 @@ namespace AvaAvaDance
 
         void BindEditCommands()
         {
+            Bind(Command.ClearBookmarks, ConfirmClearBookmarks, ()=>bookmarks.Count>0);
+            Bind(Command.ModelPlacement, ShowModelPlacement, ()=>actor.avatar!=null);
+            Bind(Command.ViewTargetFollow, ShowViewTargetFollow);
+            Bind(Command.BackdropPlacement, ShowBackdropPlacement);
+            Bind(Command.BakePhysics, ShowPhysicsBakeDialog, CanBakePhysics);
             Bind(Command.ScaleKeyframes, ShowTimeScaleDialog, CanScaleKeyframes);
             Bind(Command.EditTransform, () => NumericTransform(), () => !modelMode || actor.selectedBone != null);
             Bind(Command.ZeroAngles, () => {
@@ -59,7 +65,7 @@ namespace AvaAvaDance
             }, () => !modelMode || actor.selectedBone != null);
             Bind(Command.DeleteUnused, DeleteUnusedKeys);
             Bind(Command.SelectCamera, () => SelectTrackKeys(cameraTrack), SceneMode);
-            Bind(Command.SelectLight, () => SelectTrackKeys(lightTrack), SceneMode);
+            Bind(Command.SelectLight, () => SelectTrackKeys(EditingLight), SceneMode);
             Bind(Command.SelectShadow, () => SelectTrackKeys(shadowTrack), SceneMode);
             Bind(Command.SelectGravity, () => SelectTrackKeys(gravityTrack), SceneMode);
             Bind(Command.SelectBones, () => SelectGroup(false), ModelBones);
