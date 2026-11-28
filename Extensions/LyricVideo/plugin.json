@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "ava.lyric-video",
+  "displayName": "リリックビデオ",
+  "version": "1.0.0",
+  "sdk": { "major": 1, "minMinor": 5 },
+  "entry": { "assembly": "managed/Ava.LyricVideo.dll", "type": "Ava.LyricVideo.LyricPlugin" },
+  "dependencies": [],
+  "stateSchema": 1
+}

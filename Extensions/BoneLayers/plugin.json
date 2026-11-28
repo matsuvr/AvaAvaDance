@@ -1,0 +1,13 @@
+{
+  "manifestVersion": 1,
+  "displayName": "ボーンレイヤー整理",
+  "id": "ava.bone-layers",
+  "version": "1.1.0",
+  "sdk": { "major": 1, "minMinor": 2 },
+  "entry": {
+    "assembly": "managed/Ava.BoneLayers.dll",
+    "type": "Ava.BoneLayers.BoneLayerPlugin"
+  },
+  "dependencies": [],
+  "stateSchema": 1
+}

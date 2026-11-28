@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "coordinateSpace": "motion",
+  "bones": [
+    {
+      "name": "ベース"
+    },
+    {
+      "name": "センター",
+      "parent": "ベース",
+      "shape": "Pyramid",
+      "size": 0.1
+    },
+    {
+      "name": "再生",
+      "position": {
+        "y": 0.05
+      }
+    }
+  ],
+  "morphs": [
+    {
+      "name": "フレーム",
+      "category": 1
+    },
+    {
+      "name": "トリガー",
+      "category": 1
+    },
+    {
+      "name": "オート再生",
+      "category": 1
+    },
+    {
+      "name": "ループ",
+      "category": 2
+    },
+    {
+      "name": "トリガー削除",
+      "category": 2
+    },
+    {
+      "name": "拡大",
+      "category": 3
+    },
+    {
+      "name": "縮小",
+      "category": 3
+    },
+    {
+      "name": "速度UP",
+      "category": 3
+    },
+    {
+      "name": "速度DOWN",
+      "category": 3
+    },
+    {
+      "name": "@エフェクトテスト",
+      "category": 4
+    },
+    {
+      "name": "モデル消去",
+      "category": 4
+    },
+    {
+      "name": "stop root",
+      "category": 4
+    }
+  ]
+}

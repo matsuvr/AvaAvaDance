@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "displayName": "AvaAvaEffect",
+  "id": "ava.mme",
+  "windowsOnly": true,
+  "version": "1.0.0",
+  "sdk": {
+    "major": 1,
+    "minMinor": 5
+  },
+  "entry": {
+    "assembly": "managed/Ava.SurfaceEffects.dll",
+    "type": "Ava.SurfaceEffects.EffectPlugin"
+  },
+  "dependencies": [],
+  "services": [
+    "desktop-forms",
+    "scene",
+    "render",
+    "project-state"
+  ],
+  "stateSchema": 1
+}

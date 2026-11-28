@@ -1,0 +1,17 @@
+{
+  "manifestVersion": 1,
+  "displayName": "Effekseer",
+  "id": "ava.effekseer",
+  "windowsOnly": true,
+  "version": "1.0.0",
+  "sdk": {
+    "major": 1,
+    "minMinor": 4
+  },
+  "entry": {
+    "assembly": "managed/Ava.Effekseer.dll",
+    "type": "Ava.Effekseer.EffectPlugin"
+  },
+  "dependencies": [],
+  "stateSchema": 1
+}

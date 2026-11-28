@@ -1,0 +1,1963 @@
+/* AvaAvaDance dark workspace theme */
+:root {
+    /* Surface, text and control colors */
+    --md-sys-color-primary: #6096BC;
+    --md-sys-color-on-primary: #141D24;
+    --md-sys-color-primary-container: #35546A;
+    --md-sys-color-on-primary-container: #E6F1FB;
+    --md-sys-color-primary-hover: #78AAD0;
+    --md-sys-color-primary-active: #5385A6;
+
+    --md-sys-color-secondary: #B7C1CA;
+    --md-sys-color-on-secondary: #202329;
+    --md-sys-color-secondary-container: #41464D;
+    --md-sys-color-on-secondary-container: #E4E8ED;
+    --md-sys-color-secondary-container-hover: #525B65;
+    --md-sys-color-secondary-container-active: #344C60;
+
+    --md-sys-color-tertiary: #E5B273;
+    --md-sys-color-on-tertiary: #291807;
+    --md-sys-color-tertiary-container: #72502C;
+    --md-sys-color-on-tertiary-container: #FFE4BC;
+
+    --md-sys-color-surface-dim: #22252A;
+    --md-sys-color-surface: #35393F;
+    --md-sys-color-surface-container-lowest: #24272C;
+    --md-sys-color-surface-container-low: #2B2F35;
+    --md-sys-color-surface-container: #30343A;
+    --md-sys-color-surface-container-high: #393E45;
+    --md-sys-color-surface-container-highest: #484E56;
+
+    --md-sys-color-on-surface: #E3E8EF;
+    --md-sys-color-on-surface-variant: #B8C2CD;
+    --md-sys-color-outline: #69747F;
+    --md-sys-color-outline-variant: #484F58;
+
+    --md-sys-state-hover: rgba(120, 170, 208, 0.18);
+    --md-sys-state-active: rgba(120, 170, 208, 0.3);
+    --md-sys-state-disabled-bg: rgba(16, 18, 21, 0.18);
+    --md-sys-state-disabled-fg: rgba(184, 194, 205, 0.45);
+    --md-sys-color-scrim: rgba(12, 14, 17, 0.65);
+}
+
+/* Base Canvas & Workspace */
+.root {
+    flex-grow: 1;
+    background-color: var(--md-sys-color-surface-dim);
+    color: var(--md-sys-color-on-surface);
+    font-size: 12px;
+}
+
+.workspace {
+    width: 100%;
+    min-width: 320px;
+    flex-shrink: 0;
+    background-color: var(--md-sys-color-surface-dim);
+}
+
+.row {
+    flex-direction: row;
+}
+
+.row > * {
+    min-width: 0;
+}
+
+Label {
+    color: var(--md-sys-color-on-surface);
+}
+
+.hidden {
+    display: none;
+}
+
+/* =========================================================
+ * M3 Core Components: Buttons, Fields, Dropdowns, Toggles, Sliders
+ * ========================================================= */
+
+/* M3 Filled Tonal Button (default) */
+Button {
+    height: 24px;
+    min-height: 24px;
+    margin: 2px;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+    flex-grow: 1;
+    border-radius: 2px;
+    border-width: 1px;
+    border-color: transparent;
+    background-color: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+    -unity-text-align: middle-center;
+    transition-property: background-color, border-color, color;
+    transition-duration: 0.12s;
+}
+
+Button:hover {
+    background-color: var(--md-sys-color-secondary-container-hover);
+}
+
+Button:active {
+    background-color: var(--md-sys-color-secondary-container-active);
+}
+
+Button:disabled {
+    background-color: var(--md-sys-state-disabled-bg);
+    border-color: transparent;
+    color: var(--md-sys-state-disabled-fg);
+}
+
+/* M3 Filled Primary state for active/selected tool toggles */
+.active-tool {
+    background-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    border-color: var(--md-sys-color-primary);
+    -unity-font-style: bold;
+}
+
+.active-tool:hover {
+    background-color: var(--md-sys-color-primary-hover);
+    border-color: var(--md-sys-color-primary-hover);
+}
+
+.active-tool:active {
+    background-color: var(--md-sys-color-primary-active);
+}
+
+/* M3 Outlined Text Fields & Dropdowns */
+TextField, IntegerField, FloatField, DropdownField {
+    margin: 2px;
+    height: 24px;
+    min-height: 24px;
+    color: var(--md-sys-color-on-surface);
+}
+
+.unity-base-field__label {
+    color: var(--md-sys-color-on-surface-variant);
+    -unity-text-align: middle-left;
+}
+
+.unity-base-field__input {
+    height: 20px;
+    min-height: 20px;
+    padding: 0;
+    margin: 0;
+    -unity-text-align: middle-left;
+}
+
+.unity-base-text-field__input {
+    font-size: 12px;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 6px;
+    padding-right: 6px;
+    background-color: var(--md-sys-color-surface-container-lowest);
+    color: var(--md-sys-color-on-surface);
+    border-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+    border-radius: 2px;
+    --unity-cursor-color: var(--md-sys-color-primary);
+    --unity-selection-color: rgba(63, 90, 169, 0.24);
+}
+
+.unity-base-text-field__input:hover {
+    border-color: var(--md-sys-color-outline);
+}
+
+.unity-base-text-field:focus .unity-base-text-field__input,
+.unity-base-text-field__input:focus {
+    border-color: var(--md-sys-color-primary);
+    background-color: rgb(252, 253, 255);
+}
+
+.unity-base-text-field:disabled .unity-base-text-field__input {
+    background-color: rgba(26, 27, 32, 0.04);
+    border-color: rgba(26, 27, 32, 0.14);
+    color: var(--md-sys-state-disabled-fg);
+}
+
+.unity-base-popup-field__input {
+    padding-left: 7px;
+    padding-right: 5px;
+    background-color: var(--md-sys-color-surface-container-lowest);
+    color: var(--md-sys-color-on-surface);
+    border-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+    border-radius: 2px;
+}
+
+.unity-base-popup-field__input:hover {
+    border-color: var(--md-sys-color-outline);
+    background-color: var(--md-sys-color-surface);
+}
+
+.unity-base-popup-field:disabled .unity-base-popup-field__input {
+    background-color: rgba(26, 27, 32, 0.04);
+    border-color: rgba(26, 27, 32, 0.14);
+    color: var(--md-sys-state-disabled-fg);
+}
+
+.unity-popup-field__text,
+.unity-base-popup-field__text {
+    margin: 0 4px 0 0;
+    padding: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--md-sys-color-on-surface);
+    -unity-text-align: middle-left;
+}
+
+.unity-base-popup-field:disabled .unity-base-popup-field__text {
+    color: var(--md-sys-state-disabled-fg);
+}
+
+.unity-base-popup-field__arrow {
+    -unity-background-image-tint-color: var(--md-sys-color-on-surface-variant);
+}
+
+/* M3 Dropdown Popup Menu (GenericDropdownMenu & DropdownField popup) */
+.unity-base-dropdown__container-outer {
+    background-color: var(--md-sys-color-surface-container);
+    border-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+    border-radius: 2px;
+    padding: 4px;
+}
+
+.unity-base-dropdown__container-inner {
+    background-color: transparent;
+}
+
+.unity-base-dropdown__item {
+    border-radius: 2px;
+    color: var(--md-sys-color-on-surface);
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+.unity-base-dropdown__item:hover {
+    background-color: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+}
+
+.unity-base-dropdown__checkmark {
+    -unity-background-image-tint-color: var(--md-sys-color-primary);
+}
+
+/* M3 Checkbox (Toggle) */
+Toggle {
+    margin: 2px 3px;
+    color: var(--md-sys-color-on-surface);
+    align-items: center;
+}
+
+Toggle > .unity-base-field__input {
+    height: 18px;
+    min-height: 18px;
+    align-items: center;
+    background-color: transparent;
+    border-width: 0;
+}
+
+.unity-toggle__checkmark {
+    width: 15px;
+    height: 15px;
+    min-width: 15px;
+    min-height: 15px;
+    border-width: 1.5px;
+    border-color: var(--md-sys-color-on-surface-variant);
+    border-radius: 2px;
+    background-color: var(--md-sys-color-surface-container-lowest);
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+Toggle:hover .unity-toggle__checkmark {
+    border-color: var(--md-sys-color-primary);
+    background-color: var(--md-sys-state-hover);
+}
+
+Toggle:checked .unity-toggle__checkmark {
+    background-color: var(--md-sys-color-primary);
+    border-color: var(--md-sys-color-primary);
+    -unity-background-image-tint-color: var(--md-sys-color-on-primary);
+}
+
+Toggle:checked:hover .unity-toggle__checkmark {
+    background-color: var(--md-sys-color-primary-hover);
+    border-color: var(--md-sys-color-primary-hover);
+}
+
+Toggle:disabled {
+    color: var(--md-sys-state-disabled-fg);
+}
+
+Toggle:disabled .unity-toggle__checkmark {
+    background-color: rgba(26, 27, 32, 0.05);
+    border-color: rgba(26, 27, 32, 0.24);
+}
+
+Toggle:disabled:checked .unity-toggle__checkmark {
+    background-color: rgba(26, 27, 32, 0.28);
+    border-color: transparent;
+    -unity-background-image-tint-color: var(--md-sys-color-surface);
+}
+
+.unity-toggle__text {
+    color: var(--md-sys-color-on-surface);
+    margin-left: 4px;
+}
+
+/* M3 Radio Button */
+.unity-radio-button__checkmark-background {
+    width: 16px;
+    height: 16px;
+    border-radius: 2px;
+    border-width: 2px;
+    border-color: var(--md-sys-color-on-surface-variant);
+    background-color: var(--md-sys-color-surface-container-lowest);
+    align-items: center;
+    justify-content: center;
+}
+
+RadioButton:checked .unity-radio-button__checkmark-background {
+    border-color: var(--md-sys-color-primary);
+}
+
+RadioButton:checked .unity-radio-button__checkmark {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background-color: var(--md-sys-color-primary);
+}
+
+/* M3 Sliders */
+Slider .unity-base-slider__tracker,
+SliderInt .unity-base-slider__tracker {
+    height: 4px;
+    margin-top: -2px;
+    border-radius: 2px;
+    border-width: 0;
+    background-color: var(--md-sys-color-surface-container-highest);
+}
+
+Slider .unity-base-slider__dragger,
+SliderInt .unity-base-slider__dragger {
+    width: 14px;
+    height: 14px;
+    margin-top: -7px;
+    border-radius: 2px;
+    border-width: 2px;
+    border-color: var(--md-sys-color-surface-container-lowest);
+    background-color: var(--md-sys-color-primary);
+}
+
+Slider:hover .unity-base-slider__dragger,
+SliderInt:hover .unity-base-slider__dragger {
+    background-color: var(--md-sys-color-primary-hover);
+}
+
+Slider:disabled .unity-base-slider__dragger,
+SliderInt:disabled .unity-base-slider__dragger {
+    background-color: rgba(26, 27, 32, 0.30);
+    border-color: var(--md-sys-color-surface-container-low);
+}
+
+Slider .unity-base-slider__dragger-border,
+SliderInt .unity-base-slider__dragger-border {
+    display: none;
+}
+
+/* M3 Scrollbars (explicitly reset slider overrides inside Scroller) */
+.unity-scroller {
+    background-color: var(--md-sys-color-surface-container);
+}
+
+.unity-scroller .unity-base-slider__tracker {
+    height: auto;
+    width: auto;
+    margin: 0;
+    border-radius: 0;
+    border-width: 0;
+    background-color: var(--md-sys-color-surface-container);
+}
+
+.unity-scroller--vertical .unity-base-slider__dragger {
+    width: 10px;
+    height: auto;
+    margin: 0 2px;
+    border-radius: 2px;
+    border-width: 0;
+    background-color: var(--md-sys-color-outline-variant);
+}
+
+.unity-scroller--horizontal .unity-base-slider__dragger {
+    width: auto;
+    height: 10px;
+    margin: 2px 0;
+    border-radius: 2px;
+    border-width: 0;
+    background-color: var(--md-sys-color-outline-variant);
+}
+
+.unity-scroller .unity-base-slider__dragger:hover {
+    background-color: var(--md-sys-color-outline);
+}
+
+.unity-scroller__low-button,
+.unity-scroller__high-button {
+    border-radius: 2px;
+    border-width: 0;
+    margin: 0;
+    padding: 0;
+    background-color: var(--md-sys-color-surface-container);
+    -unity-background-image-tint-color: var(--md-sys-color-on-surface-variant);
+}
+
+.unity-scroller__low-button:hover,
+.unity-scroller__high-button:hover {
+    background-color: var(--md-sys-color-surface-container-highest);
+}
+
+/* =========================================================
+ * Top Profile Bar & Primary Mode Tabs
+ * ========================================================= */
+
+/* Keep warning indicator color contract (r==255, g==213) with M3 pill shape */
+#shader-add {
+    margin-left: auto;
+}
+
+#shader-add.missing-shaders {
+    background-color: rgb(255, 213, 111);
+    color: rgb(53, 34, 0);
+    border-width: 1.5px;
+    border-color: rgb(183, 109, 0);
+    -unity-font-style: bold;
+}
+
+#shader-add.missing-shaders:hover {
+    background-color: rgb(255, 224, 145);
+}
+
+#layer-target {
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    max-width: 100%;
+    align-items: center;
+    margin-left: 4px;
+}
+
+#layer-target > Label {
+    margin-right: 4px;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+#layer-target DropdownField {
+    min-width: 76px;
+    max-width: 160px;
+}
+
+#quick-access {
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    max-width: 100%;
+}
+
+/* =========================================================
+ * Classic Menu Bar & Dropdown Menus
+ * ========================================================= */
+
+.menu {
+    min-height: 26px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    background-color: var(--md-sys-color-surface-container-low);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--md-sys-color-outline-variant);
+    padding-left: 4px;
+    padding-right: 4px;
+    align-items: center;
+}
+
+.menu Button {
+    flex-grow: 0;
+    flex-shrink: 0;
+    height: 22px;
+    min-height: 22px;
+    margin: 1px 2px;
+    border-width: 0;
+    border-radius: 2px;
+    background-color: transparent;
+    color: var(--md-sys-color-on-surface);
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.menu Button:hover {
+    background-color: var(--md-sys-state-hover);
+}
+
+.menu Button.open-menu {
+    background-color: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+}
+
+.menu-overlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.workspace-dropdown {
+    position: absolute;
+    background-color: var(--md-sys-color-surface-container);
+    border-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+    border-radius: 2px;
+    padding: 4px;
+}
+
+.workspace-dropdown .workspace-menu-row {
+    flex-direction: row;
+    flex-shrink: 0;
+    flex-grow: 0;
+    height: 22px;
+    min-height: 22px;
+    margin: 0;
+    border-width: 0;
+    border-radius: 2px;
+    background-color: transparent;
+    padding-left: 4px;
+    padding-right: 8px;
+    align-items: center;
+}
+
+.workspace-dropdown .workspace-menu-row:hover,
+.workspace-dropdown .menu-selection {
+    background-color: var(--md-sys-color-secondary-container);
+}
+
+.workspace-menu-row Label {
+    color: var(--md-sys-color-on-surface);
+    margin: 0;
+    padding: 0;
+    -unity-text-align: middle-left;
+}
+
+.workspace-menu-row:disabled Label {
+    color: var(--md-sys-state-disabled-fg);
+}
+
+.workspace-menu-row .menu-check {
+    width: 20px;
+    color: var(--md-sys-color-primary);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.workspace-menu-row .menu-caption {
+    flex-grow: 1;
+}
+
+.workspace-menu-divider {
+    height: 6px;
+    flex-shrink: 0;
+    border-top-width: 1px;
+    border-top-color: var(--md-sys-color-outline-variant);
+    margin-left: 10px;
+    margin-right: 10px;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.menu-space {
+    flex-grow: 1;
+}
+
+/* =========================================================
+ * Ribbon Tabs, Tool Groups & Transport Bar
+ * ========================================================= */
+
+.ribbon-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    margin-bottom: 1px;
+}
+
+/* =========================================================
+ * Fullscreen Preview
+ * ========================================================= */
+
+.fullscreen-preview .menu,
+.fullscreen-preview .transform-bar,
+.fullscreen-preview .status,
+.fullscreen-preview .viewport-title,
+.fullscreen-preview .bones-overlay,
+.fullscreen-preview .axis-tools {
+    display: none;
+}
+
+.workspace.fullscreen-preview {
+    min-width: 0;
+}
+
+/* =========================================================
+ * Main Area: Sidebar (Timeline + Curve) & Right (Viewport + Bottom)
+ * ========================================================= */
+
+.main {
+    flex-direction: row;
+    flex-grow: 1;
+    flex-shrink: 0;
+}
+
+.sidebar {
+    width: 256px;
+    flex-shrink: 0;
+    padding: 4px;
+    background-color: var(--md-sys-color-surface-container-low);
+    border-right-width: 1px;
+    border-right-color: var(--md-sys-color-outline-variant);
+}
+
+.right {
+    flex-basis: 0;
+    min-width: 0;
+    flex-grow: 1;
+}
+
+.viewport {
+    flex-grow: 1;
+    min-height: 380px;
+    background-color: var(--md-sys-color-surface-container-lowest);
+    overflow: hidden;
+}
+
+.viewport-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--md-sys-color-on-surface);
+    background-color: var(--md-sys-color-surface-container);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--md-sys-color-outline-variant);
+    font-size: 13px;
+    -unity-font-style: bold;
+    height: 24px;
+    padding-left: 10px;
+    -unity-text-align: middle-left;
+}
+
+.viewport-note {
+    white-space: normal;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 12px;
+}
+
+.bones-overlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+/* Viewport Axis Gizmo Buttons */
+.axis-tools {
+    position: absolute;
+    right: 12px;
+    bottom: 10px;
+    background-color: rgba(43, 47, 53, 0.9);
+    border-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+    border-radius: 2px;
+    padding: 3px 6px;
+}
+
+.axis-tools .row {
+    align-items: center;
+}
+
+.axis-tools .row > Label {
+    -unity-text-align: middle-center;
+    color: var(--md-sys-color-on-surface-variant);
+    margin-right: 4px;
+    font-size: 11px;
+}
+
+.axis-handle {
+    width: 26px;
+    height: 24px;
+    min-height: 24px;
+    margin: 2px;
+    padding: 0;
+    border-radius: 2px;
+    border-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+    background-color: var(--md-sys-color-surface-container-lowest);
+    -unity-font-style: bold;
+    font-size: 14px;
+}
+
+.axis-handle:hover {
+    background-color: var(--md-sys-color-surface-container-high);
+}
+
+.axis-0 { color: rgb(197, 34, 31); }
+.axis-1 { color: rgb(30, 142, 62); }
+.axis-2 { color: rgb(26, 115, 232); }
+
+/* =========================================================
+ * Transform Bar
+ * ========================================================= */
+
+.transform-bar {
+    min-height: 32px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    align-items: center;
+    padding-left: 6px;
+    padding-right: 6px;
+    background-color: var(--md-sys-color-surface-container);
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+}
+
+.transform-bar > Label {
+    color: var(--md-sys-color-on-surface-variant);
+    margin-left: 4px;
+    margin-right: 2px;
+}
+
+.transform-bar Button {
+    flex-grow: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.transform-bar IntegerField {
+    width: 48px;
+}
+
+.transform-bar FloatField {
+    width: 80px;
+    flex-shrink: 0;
+}
+
+.transform-bar FloatField > Label {
+    min-width: 12px;
+    width: auto;
+    margin-right: 2px;
+}
+
+.transform-bar .unity-base-text-field__input {
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+/* =========================================================
+ * Bottom Operation Panels
+ * ========================================================= */
+
+.bottom {
+    flex-shrink: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    padding: 4px;
+    background-color: var(--md-sys-color-surface-dim);
+}
+
+.panel {
+    padding: 4px;
+    margin-right: 4px;
+    margin-bottom: 4px;
+    max-width: 100%;
+    border-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+    border-radius: 2px;
+    background-color: var(--md-sys-color-surface-container-low);
+    flex-shrink: 0;
+}
+
+.panel Label {
+    font-size: 12px;
+    color: var(--md-sys-color-on-surface);
+}
+
+.panel .row {
+    min-height: 24px;
+    align-items: center;
+}
+
+.panel Toggle {
+    height: 20px;
+    flex-shrink: 0;
+    color: var(--md-sys-color-on-surface);
+}
+
+.panel > Button {
+    flex-grow: 0;
+}
+
+.panel Toggle > .unity-base-field__label {
+    min-width: 0;
+    width: auto;
+    margin-right: 4px;
+    flex-grow: 0;
+    color: var(--md-sys-color-on-surface);
+}
+
+.panel Toggle > .unity-base-field__input {
+    flex-grow: 0;
+    min-width: 16px;
+}
+
+/* M3 Section Header inside Panels & Sidebar */
+.header,
+.panel .header {
+    color: var(--md-sys-color-primary);
+    background-color: var(--md-sys-color-surface-container-high);
+    border-radius: 2px;
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+    height: 20px;
+    margin-bottom: 3px;
+    padding-left: 6px;
+    padding-right: 6px;
+}
+
+.frame-header {
+    background-color: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-primary);
+}
+
+/* Panel Widths (preserving exact layout proportions) */
+.model { width: 148px; }
+.bone { width: 190px; }
+.camera { width: 176px; }
+.morph { width: 294px; }
+.light { width: 180px; }
+.self-shadow { width: 164px; }
+.accessory { width: 150px; }
+.playback { width: 160px; }
+
+/* Panel-specific compact controls */
+.accessory FloatField {
+    flex-grow: 1;
+    min-width: 0;
+    width: 30%;
+    margin: 1px;
+}
+
+.accessory FloatField > Label {
+    min-width: 12px;
+    width: auto;
+    margin-right: 1px;
+}
+
+.accessory .unity-base-text-field__input {
+    padding-left: 3px;
+    padding-right: 2px;
+}
+
+.view-buttons {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.view-buttons Button {
+    width: 29%;
+    padding-left: 2px;
+    padding-right: 2px;
+    background-color: var(--md-sys-color-surface-container-lowest);
+    border-color: var(--md-sys-color-outline-variant);
+    color: var(--md-sys-color-on-surface);
+}
+
+.view-buttons Button:hover {
+    background-color: var(--md-sys-color-secondary-container);
+    border-color: transparent;
+}
+
+.light Slider {
+    height: 20px;
+    min-height: 20px;
+    margin-top: 1px;
+    margin-bottom: 1px;
+}
+
+.light Slider > Label {
+    min-width: 14px;
+    width: 16px;
+}
+
+.light Slider FloatField,
+.camera SliderInt IntegerField {
+    width: 44px;
+    min-width: 36px;
+    height: 20px;
+    min-height: 20px;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.light Slider FloatField .unity-base-field__input,
+.camera SliderInt IntegerField .unity-base-field__input,
+.self-shadow SliderInt IntegerField .unity-base-field__input {
+    height: 18px;
+    min-height: 18px;
+    padding-left: 3px;
+    padding-right: 3px;
+}
+
+.morph-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+#weight-edit Slider {
+    flex-grow: 1;
+    min-width: 18px;
+}
+
+#weight-edit FloatField {
+    width: 38px;
+}
+
+#weight-edit FloatField .unity-base-text-field__input {
+    padding-left: 3px;
+    padding-right: 2px;
+}
+
+.morph-control {
+    width: 49.5%;
+    padding: 2px;
+}
+
+.morph-control .row {
+    align-items: center;
+}
+
+.morph-control .row > Label {
+    flex-grow: 1;
+    color: var(--md-sys-color-on-surface);
+}
+
+.morph-control Slider FloatField {
+    width: 39px;
+}
+
+#display-options Toggle,
+#play-actions Toggle {
+    flex-shrink: 1;
+}
+
+#playback-range TextField {
+    width: 45px;
+    flex-grow: 1;
+}
+
+#shadow-modes Button {
+    border-radius: 2px;
+    padding-left: 3px;
+    padding-right: 3px;
+    margin: 1px;
+    font-size: 11px;
+}
+
+.self-shadow SliderInt IntegerField {
+    width: 48px;
+    height: 20px;
+    min-height: 20px;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+#ik-controls Toggle {
+    flex-grow: 1;
+}
+
+#ik-controls Toggle > Label {
+    min-width: 0;
+}
+
+.volume {
+    height: 20px;
+    margin-top: 2px;
+}
+
+.volume > Label {
+    min-width: 24px;
+    width: 28px;
+}
+
+/* =========================================================
+ * Timeline, Waveform & Interpolation Curve
+ * ========================================================= */
+
+.frame-nav Button {
+    padding-left: 1px;
+    padding-right: 1px;
+    min-width: 17px;
+    margin-left: 1px;
+    margin-right: 1px;
+    border-radius: 2px;
+    background-color: var(--md-sys-color-surface-container-lowest);
+    border-color: var(--md-sys-color-outline-variant);
+    color: var(--md-sys-color-on-surface);
+}
+
+.frame-nav Button:hover {
+    background-color: var(--md-sys-color-secondary-container);
+    border-color: transparent;
+}
+
+.frame-nav IntegerField {
+    width: 47px;
+}
+
+.frame-nav IntegerField .unity-base-text-field__input {
+    padding-left: 3px;
+    padding-right: 3px;
+    -unity-text-align: middle-center;
+}
+
+.waveform {
+    height: 32px;
+    background-color: var(--md-sys-color-surface-container-lowest);
+    border-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+    border-radius: 2px;
+    margin-top: 2px;
+    overflow: hidden;
+}
+
+.timeline {
+    flex-grow: 1;
+    min-height: 240px;
+    background-color: var(--md-sys-color-surface-container-lowest);
+    border-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+    border-radius: 2px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    overflow: hidden;
+}
+
+.ruler {
+    height: 19px;
+    flex-shrink: 0;
+    background-color: var(--md-sys-color-surface-container-high);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--md-sys-color-outline-variant);
+}
+
+.ruler Label {
+    margin: 0;
+    position: absolute;
+    font-size: 10px;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.track-name {
+    margin: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    flex-shrink: 0;
+    width: 96px;
+    height: 19px;
+    padding-left: 6px;
+    padding-right: 4px;
+    background-color: var(--md-sys-color-surface-container);
+    color: var(--md-sys-color-on-surface);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--md-sys-color-outline-variant);
+    border-right-width: 1px;
+    border-right-color: var(--md-sys-color-outline-variant);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.track-name.layer-group {
+    font-size: 11px;
+    -unity-font-style: bold;
+    background-color: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.selected-track {
+    color: var(--md-sys-color-on-primary-container);
+    background-color: var(--md-sys-color-primary-container);
+    -unity-font-style: bold;
+}
+
+#time-scroll SliderInt {
+    flex-grow: 1;
+    margin-left: 4px;
+}
+
+#key-range IntegerField,
+#key-scope DropdownField {
+    flex-grow: 1;
+}
+
+#key-range IntegerField {
+    width: 74px;
+}
+
+.interpolation {
+    height: 150px;
+    flex-direction: row;
+    margin-top: 4px;
+}
+
+.curve {
+    width: 125px;
+    height: 125px;
+    background-color: var(--md-sys-color-surface-container-lowest);
+    border-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+    border-radius: 2px;
+}
+
+.interpolation-controls {
+    flex-grow: 1;
+    padding-left: 4px;
+}
+
+.curve-palette .row > Button {
+    min-width: 20px;
+    margin-left: 1px;
+    margin-right: 1px;
+    padding-left: 3px;
+    padding-right: 3px;
+}
+
+.timeline-curve {
+    height: 86px;
+    flex-shrink: 0;
+    margin-left: 2px;
+    margin-right: 2px;
+    margin-bottom: 4px;
+    padding: 4px;
+    background-color: var(--md-sys-color-surface-container);
+    border-radius: 2px;
+    border-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+}
+
+.curve-lane {
+    height: 60px;
+}
+
+#curve-axis {
+    width: 96px;
+    flex-shrink: 0;
+}
+
+.timeline-segment {
+    flex-grow: 1;
+    width: auto;
+    height: 60px;
+    overflow: hidden;
+}
+
+/* =========================================================
+ * Status Bar
+ * ========================================================= */
+
+.status {
+    min-height: 22px;
+    white-space: normal;
+    flex-shrink: 0;
+    background-color: var(--md-sys-color-surface-container);
+    color: var(--md-sys-color-on-surface-variant);
+    border-top-width: 1px;
+    border-top-color: var(--md-sys-color-outline-variant);
+    padding-left: 10px;
+    padding-right: 10px;
+    font-size: 11px;
+    -unity-text-align: middle-left;
+}
+
+/* =========================================================
+ * M3 Dialogs & Import Dialog
+ * ========================================================= */
+
+.modal {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--md-sys-color-scrim);
+    align-items: center;
+    justify-content: center;
+}
+
+.dialog-body {
+    width: 390px;
+    max-width: 95%;
+    max-height: 95%;
+    padding: 18px;
+    border-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+    border-radius: 2px;
+    background-color: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
+}
+
+.dialog-body .unity-scroll-view__content-container > * {
+    flex-shrink: 0;
+}
+
+.dialog-body .row, .import-dialog .row, #dependency-notice,
+#audio-controls, #timeline-tabs {
+    flex-wrap: wrap;
+}
+
+.dialog-body Label, .import-dialog Label, .import-dialog .unity-toggle__text {
+    white-space: normal;
+}
+
+.dialog-body Toggle {
+    color: var(--md-sys-color-on-surface);
+}
+
+#dialog-title {
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: var(--md-sys-color-on-surface);
+    margin-bottom: 12px;
+}
+
+#dependency-notice {
+    flex-shrink: 0;
+    align-items: center;
+    background-color: var(--md-sys-color-surface-container-lowest);
+    padding: 4px 10px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--md-sys-color-outline-variant);
+}
+
+#dependency-notice Button {
+    flex-grow: 0;
+    flex-shrink: 0;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+#dependency-notice Label {
+    flex-grow: 0;
+    margin-right: 10px;
+    flex-shrink: 1;
+    white-space: normal;
+    color: var(--md-sys-color-on-surface);
+}
+
+.dependency-title {
+    -unity-font-style: bold;
+    margin-top: 12px;
+}
+
+.dependency-url {
+    margin-bottom: 6px;
+}
+
+.dialog-body.shader-license-dialog {
+    width: 700px;
+    max-width: 95%;
+}
+
+.shader-license-description {
+    white-space: normal;
+    margin-bottom: 8px;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.shader-license-text {
+    height: 280px;
+    margin-top: 6px;
+    margin-bottom: 10px;
+    background-color: var(--md-sys-color-surface-container-lowest);
+    border-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+    border-radius: 2px;
+    padding: 10px;
+}
+
+.import-dialog {
+    position: absolute;
+    left: 15%;
+    top: 20%;
+    width: 70%;
+    max-height: 75%;
+    padding: 20px;
+    background-color: var(--md-sys-color-surface);
+    border-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+    border-radius: 2px;
+}
+
+.import-dialog Toggle {
+    color: var(--md-sys-color-on-surface);
+}
+
+.fbx-list {
+    flex-grow: 0;
+    flex-shrink: 1;
+    min-height: 0;
+    max-height: 240px;
+    margin: 6px 0;
+    padding: 6px;
+    background-color: var(--md-sys-color-surface-container-lowest);
+    border-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+    border-radius: 2px;
+}
+
+.fbx-list .unity-radio-button-group > .unity-base-field__input {
+    height: auto;
+}
+
+.fbx-list .unity-radio-button__input {
+    height: auto;
+    min-height: 24px;
+}
+
+.fbx-list .unity-radio-button__text {
+    white-space: normal;
+    flex-shrink: 1;
+}
+
+#movie-range TextField {
+    width: 76px;
+    flex-grow: 1;
+}
+
+/* =========================================================
+ * Floating Tool Windows
+ * ========================================================= */
+
+.floating-editor {
+    flex-grow: 1;
+    background-color: var(--md-sys-color-surface-container-low);
+    color: var(--md-sys-color-on-surface);
+    padding: 8px;
+}
+
+.floating-editor .row {
+    flex-wrap: wrap;
+    min-height: 28px;
+    flex-shrink: 0;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.floating-editor Button {
+    min-width: 65px;
+    min-height: 24px;
+    flex-grow: 1;
+}
+
+.floating-editor TextField {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 65px;
+}
+
+.floating-editor TextField > Label {
+    min-width: 22px;
+    width: auto;
+    flex-shrink: 0;
+    flex-grow: 0;
+    padding-left: 3px;
+    padding-right: 4px;
+}
+
+.floating-board {
+    flex-grow: 1;
+    min-height: 50px;
+    overflow: hidden;
+    background-color: var(--md-sys-color-surface-container-lowest);
+    border-width: 1px;
+    border-color: var(--md-sys-color-outline-variant);
+    border-radius: 2px;
+    margin-bottom: 6px;
+}
+
+#floating-wave {
+    background-color: var(--md-sys-color-surface-container-lowest);
+}
+
+.floating-heading {
+    height: 24px;
+    -unity-font-style: bold;
+    color: var(--md-sys-color-primary);
+    margin-left: 4px;
+    margin-bottom: 4px;
+}
+
+/* Animation workspace */
+.workspace {
+    min-width: 320px;
+    padding: 0;
+}
+.workspace > .menu {
+    min-height: 24px;
+    padding: 0 4px;
+    margin: 0;
+    flex-wrap: wrap;
+}
+.workspace > .menu Button {
+    height: 23px;
+    min-height: 23px;
+    margin: 0 1px;
+    padding: 0 7px;
+}
+.status-line, .shelf {
+    flex-shrink: 0;
+    background-color: #35393f;
+    border-bottom-width: 1px;
+    border-bottom-color: #1e2227;
+}
+.status-scroll, .shelf-scroll {
+    min-height: 32px;
+}
+.status-controls {
+    flex-shrink: 0;
+    align-items: center;
+}
+.status-controls > .row {
+    flex-shrink: 0;
+    align-items: center;
+    padding: 0 3px;
+    border-right-width: 1px;
+    border-right-color: #4d555e;
+}
+.status-controls Button, .status-controls DropdownField, .status-controls Toggle {
+    flex-shrink: 0;
+}
+.status-controls Button {
+    flex-grow: 0;
+    margin: 1px;
+    padding: 0 5px;
+}
+#mode-controls DropdownField { width: 145px; }
+#workspace-preset { width: 94px; }
+.status-controls #layer-target {
+    margin: 0;
+    padding: 0 3px;
+    border-radius: 0;
+    background-color: transparent;
+}
+#layer-target DropdownField { width: 74px; min-width: 74px; }
+.quick-access Button, #quick-access Button {
+    width: 25px;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+}
+#quick-access Button > Label, .shelf-tools Button > Label { display: none; }
+#quick-access .ribbon-icon { width: 22px; height: 22px; margin: 0; }
+.status-scroll .unity-scroller--horizontal, .shelf-scroll .unity-scroller--horizontal {
+    height: 8px;
+    min-height: 8px;
+}
+.status-scroll .unity-scroller--horizontal Button, .shelf-scroll .unity-scroller--horizontal Button {
+    height: 8px;
+    min-height: 8px;
+}
+.shelf-tabs {
+    min-height: 21px;
+    flex-wrap: wrap;
+    padding: 0 3px;
+    background-color: #292d32;
+}
+.shelf-tabs Button {
+    flex-grow: 0;
+    height: 20px;
+    min-height: 20px;
+    margin: 0 1px;
+    background-color: transparent;
+}
+.shelf-tabs Button:hover { background-color: #414b57; }
+.shelf-tabs .active-tool {
+    background-color: #414b57;
+    border-bottom-color: #89b6d9;
+}
+.shelf-tools { align-items: center; padding: 0 3px; }
+.shelf-tools Button {
+    flex-grow: 0;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    margin: 1px;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent;
+}
+.shelf-tools Button .ribbon-icon { margin: 0; }
+.shelf-tools Button:hover { background-color: #516578; }
+.shelf-tools Button:disabled .ribbon-icon { opacity: 0.42; }
+.workspace-body, .workspace-stage {
+    flex-direction: row;
+    flex-grow: 1;
+    min-width: 0;
+    min-height: 0;
+}
+.workspace-body { padding: 0 2px; }
+.workspace-stage { min-height: 488px; }
+.center-column { flex-grow: 1; min-width: 0; }
+.stacked-workspace { flex-direction: column; }
+.stacked-workspace .workspace-stage { min-height: 510px; }
+.toolbox {
+    width: 36px;
+    flex-shrink: 0;
+    padding: 3px 2px;
+    margin-right: 2px;
+    background-color: #30343a;
+    border-right-width: 1px;
+    border-right-color: #1d2024;
+}
+.toolbox #bone-tools { flex-direction: column; margin-bottom: 8px; }
+.toolbox Button {
+    flex-grow: 0;
+    flex-shrink: 0;
+    padding: 0;
+    margin: 1px 0;
+    min-width: 28px;
+    height: 25px;
+    min-height: 25px;
+    font-size: 10px;
+}
+.viewport-pane {
+    min-height: 252px;
+    flex-basis: 0;
+    flex-shrink: 0;
+    border-width: 1px;
+    border-color: #525a64;
+}
+.viewport-menu, .viewport-toolbar, .keyframe-header, .audio-controls {
+    flex-shrink: 0;
+    background-color: #363b42;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 0 3px;
+    border-bottom-width: 1px;
+    border-bottom-color: #20242a;
+}
+.viewport-toolbar { background-color: #292d33; }
+.viewport-menu Button, .viewport-toolbar Button, .keyframe-header Button, .audio-controls Button {
+    height: 20px;
+    min-height: 20px;
+    flex-grow: 0;
+    flex-shrink: 0;
+    padding: 0 5px;
+    margin: 0 1px;
+}
+.viewport-menu Button { background-color: transparent; }
+.viewport-menu Button:hover { background-color: #4c5968; }
+.viewport-toolbar Button { font-size: 10px; }
+.viewport-pane .viewport {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 100px;
+    margin: 0;
+    border-width: 0;
+    background-color: #38424d;
+}
+.viewport-pane .viewport-title {
+    left: auto;
+    right: 7px;
+    top: 6px;
+    color: #e8edf1;
+    background-color: rgba(36, 42, 49, 0.82);
+}
+.viewport-pane .viewport-note {
+    color: #eff3f8;
+    background-color: rgba(36, 42, 49, 0.8);
+    padding: 4px 8px;
+}
+.orientation {
+    position: absolute;
+    left: 5px;
+    bottom: 3px;
+    height: 48px;
+    width: 48px;
+}
+.workspace-splitter {
+    background-color: #20242a;
+    flex-shrink: 0;
+}
+.workspace-splitter:hover { background-color: #5285a6; }
+.horizontal-splitter { height: 4px; }
+.vertical-splitter { width: 4px; }
+.keyframe-editor {
+    flex-basis: 0;
+    flex-shrink: 0;
+    min-height: 232px;
+    background-color: #2c3036;
+    border-width: 1px;
+    border-color: #525a64;
+}
+.keyframe-header .active-tool {
+    border-bottom-color: #a7cbe6;
+    background-color: #486c87;
+    color: #f0f5fa;
+}
+.keyframe-tools {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    background-color: #353a42;
+    padding: 2px;
+}
+.keyframe-tools > Button, .keyframe-tools > .row > Button { flex-grow: 0; }
+.keyframe-tools #frame-heading, .keyframe-tools #history { display: none; }
+#key-range IntegerField { width: 58px; }
+.keyframe-body {
+    flex-grow: 1;
+    min-height: 88px;
+}
+.dopesheet-pane, .graph-pane {
+    flex-grow: 1;
+    min-width: 0;
+    min-height: 0;
+}
+.dopesheet-pane.graph-tracks {
+    width: 156px;
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+.graph-tracks .waveform, .graph-tracks #time-scroll { display: none; }
+.keyframe-body .timeline {
+    flex-basis: 0;
+    min-height: 44px;
+    margin: 0;
+}
+.keyframe-body .waveform {
+    margin: 0;
+    height: 18px;
+    flex-shrink: 0;
+}
+.keyframe-body .dock-audio { flex-grow: 1; }
+#time-scroll { min-height: 20px; align-items: center; }
+#time-scroll Button { flex-grow: 0; height: 18px; min-height: 18px; }
+.graph-pane .timeline-curve, .graph-pane .curve-lane, .graph-pane .timeline-segment {
+    flex-grow: 1;
+    height: auto;
+    min-height: 0;
+}
+.inline-curve-pane {
+    flex-shrink: 0;
+    width: 206px;
+    min-height: 0;
+    padding: 2px 3px;
+    background-color: #30343a;
+    border-left-width: 1px;
+    border-left-color: #545d68;
+}
+.inline-curve-pane #curve-heading, #tab-curve > #curve-heading { display: none; }
+.inline-curve-pane .interpolation, #tab-curve .interpolation {
+    height: auto;
+    flex-grow: 1;
+    flex-direction: column;
+    margin: 0;
+}
+.inline-curve-pane .curve, #tab-curve .curve {
+    height: auto;
+    min-height: 37px;
+    flex-grow: 1;
+    width: auto;
+}
+#tab-curve .curve { min-height: 150px; }
+.interpolation-controls {
+    flex-grow: 0;
+    padding: 0;
+}
+.interpolation-controls Button, .interpolation-controls DropdownField {
+    min-height: 19px;
+    height: 19px;
+    margin: 1px;
+}
+.interpolation-controls > Button { display: none; }
+.interpolation-controls > .row > Button { flex-grow: 1; }
+.inline-curve-pane .curve-palette { flex-shrink: 0; }
+.time-slider-bar { flex-shrink: 0; }
+.command-bar {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 0 2px;
+    background-color: #373c43;
+    border-top-width: 1px;
+    border-top-color: #20242a;
+}
+.command-bar Button, .range-slider-bar Button {
+    flex-grow: 0;
+    min-height: 20px;
+    height: 20px;
+    padding: 0 5px;
+    margin: 1px;
+}
+.command-bar > SliderInt { flex-grow: 1; min-width: 72px; }
+.command-bar > .frame-nav {
+    flex-wrap: nowrap;
+    align-items: center;
+    min-width: 0;
+    flex-shrink: 0;
+}
+.command-bar IntegerField { width: 51px; }
+.range-slider-bar {
+    min-height: 25px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    align-items: center;
+    background-color: #292d33;
+}
+.range-slider-bar > .header { display: none; }
+.range-slider-bar .row { flex-shrink: 0; align-items: center; }
+.range-slider-bar TextField { width: 54px; }
+.range-slider-bar > Slider { width: 128px; flex-grow: 1; }
+.range-slider-bar .unity-base-field__label { min-width: 29px; }
+.right-dock {
+    flex-direction: row;
+    flex-shrink: 0;
+    min-height: 0;
+    background-color: #30343a;
+    border-width: 1px;
+    border-color: #525a64;
+}
+.dock-content { flex-grow: 1; min-width: 0; }
+.inspector-scroll { flex-grow: 1; min-height: 0; }
+.dock-tabs-rail {
+    width: 23px;
+    flex-shrink: 0;
+    padding-top: 2px;
+    border-left-width: 1px;
+    border-left-color: #20242a;
+    background-color: #24282e;
+}
+.dock-tabs-rail Button {
+    width: 20px;
+    height: 32px;
+    flex-grow: 0;
+    padding: 0;
+    margin: 1px;
+}
+.inspector-page { padding: 3px 5px; }
+#inspector-title, #layer-editor-title {
+    padding: 3px 5px;
+    font-size: 12px;
+    -unity-font-style: bold;
+    background-color: #40464e;
+    border-bottom-width: 1px;
+    border-bottom-color: #525a64;
+}
+.channel-target { padding: 3px 5px; color: #accde7; -unity-font-style: bold; }
+.right-dock .transform-bar {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    background-color: transparent;
+    border-width: 0;
+}
+.right-dock .transform-bar FloatField { width: auto; height: 22px; min-height: 22px; flex-grow: 0; }
+.right-dock .transform-bar FloatField > Label { width: 81px; min-width: 81px; }
+.inspector-page .panel {
+    width: auto;
+    min-width: 0;
+    padding: 3px;
+    margin: 1px 0;
+}
+.inspector-page .panel .header { font-size: 11px; padding: 1px 4px; margin: 0; }
+.inspector-page .panel > Slider > .unity-base-field__label { min-width: 25px; width: 25px; }
+.inspector-page .panel > SliderInt > .unity-base-field__label { min-width: 25px; width: 25px; }
+.inspector-foldout > Toggle { background-color: #40464e; }
+.inspector-foldout .unity-foldout__content { margin-left: 4px; }
+.inspector-page .morph-grid { flex-direction: column; flex-wrap: nowrap; }
+.inspector-page .morph-control { width: auto; margin: 0; padding: 2px 3px; }
+.layer-editor { margin-top: 7px; }
+.layer-tabs Button { flex-grow: 0; }
+.animation-layer > .layer-name {
+    flex-grow: 1;
+    -unity-text-align: middle-left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.animation-layer > Button { flex-grow: 0; min-width: 22px; padding: 0 4px; }
+.stacked-workspace .right-dock {
+    flex-direction: column-reverse;
+    min-height: 238px;
+    margin: 4px 0;
+}
+.stacked-workspace .right-dock.dock-collapsed { min-height: 26px; }
+.stacked-workspace .dock-tabs-rail {
+    width: auto;
+    flex-direction: row;
+    padding-left: 4px;
+}
+.stacked-workspace .dock-tabs-rail Button { width: 36px; height: 24px; }
+.stacked-workspace .dock-content { height: 230px; }
+.compact-workspace .inline-curve-pane { width: 134px; }
+.compact-workspace .graph-tracks { width: 96px; }
+.compact-workspace .shelf-tabs Button { padding: 0 4px; }
+.compact-workspace .viewport-note { font-size: 10px; white-space: normal; }
+.compact-workspace .command-bar > .frame-nav { flex-shrink: 1; }
+.fullscreen-preview .status-line,
+.fullscreen-preview .shelf,
+.fullscreen-preview .toolbox,
+.fullscreen-preview .viewport-menu,
+.fullscreen-preview .viewport-toolbar,
+.fullscreen-preview .orientation,
+.fullscreen-preview .keyframe-editor,
+.fullscreen-preview .workspace-splitter,
+.fullscreen-preview .right-dock,
+.fullscreen-preview #dependency-notice { display: none; }
+.expression-actions { flex-wrap: wrap; }
+.expression-actions Button { flex-grow: 0; }
+.time-ruler { height: 22px; padding-top: 6px; background-color: #272b30; }
+.time-ruler SliderInt { margin: 0 3px; }
+.time-ruler-ticks { position: absolute; left: 3px; right: 3px; top: 0; height: 8px; }
+.range-slider-bar #playback-range { flex-grow: 1; flex-shrink: 1; min-width: 175px; }
+.range-slider-bar #range-slider { flex-grow: 1; min-width: 42px; }
+.range-slider-bar #play-actions { display: none; }
+.range-slider-bar > Slider { flex-grow: 0; }
+.viewport-pane .viewport-title {
+    position: absolute;
+    width: auto;
+    height: 22px;
+    max-width: 80%;
+    padding: 0 7px;
+    border-width: 0;
+}
+.viewport-pane .viewport-note {
+    align-self: center;
+    margin-top: 34px;
+}
+.axis-tools {
+    background-color: rgba(43, 47, 53, 0.9);
+    border-color: #1d2229;
+}
+.inspector-foldout > Toggle {
+    height: 22px;
+    min-height: 22px;
+    align-items: stretch;
+    margin: 1px 0;
+    padding: 0 3px;
+}
+.inspector-foldout > Toggle > .unity-base-field__input { flex-grow: 1; }
+.inspector-foldout > Toggle .unity-toggle__text { flex-grow: 1; }
+#rig-toggles > Toggle { width: 76px; margin: 0 3px; }
+#rig-toggles > Toggle > .unity-base-field__label { min-width: 43px; width: 43px; font-size: 10px; }
+#mode-controls DropdownField { width: 124px; }
+#layer-target > Label { display: none; }
+#layer-target DropdownField { width: 64px; min-width: 64px; }
+#layer-target Button { font-size: 10px; padding-left: 4px; padding-right: 4px; }
+#workspace-preset { width: 101px; }
+.graph-tracks .ruler { background-color: #333a42; }
+#range-slider .unity-min-max-slider__dragger {
+    background-color: #57758c;
+    -unity-background-image-tint-color: #57758c;
+}
+#range-slider .unity-min-max-slider__min-thumb,
+#range-slider .unity-min-max-slider__max-thumb { background-color: #9cb7cc; }
+.help-line {
+    min-height: 24px;
+    flex-shrink: 0;
+    align-items: center;
+    background-color: #30343a;
+    border-top-width: 1px;
+    border-top-color: #1d2229;
+}
+.help-line .status {
+    flex-grow: 1;
+    height: 22px;
+    white-space: nowrap;
+    border-top-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#hover-help {
+    max-width: 42%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #b6c6d5;
+    padding-right: 5px;
+}
+.fullscreen-preview .help-line { display: none; }
+
+.right-dock .transform-bar .channel-key { border-left-width: 2px; border-left-color: #d97673; }
+.right-dock .transform-bar .channel-draft { border-left-width: 2px; border-left-color: #e7b867; }
+
+/* Animation workspace editing controls */
+.outliner {
+    width: 216px;
+    min-width: 100px;
+    flex-shrink: 0;
+    background-color: #30353a;
+    border-right-width: 1px;
+    border-right-color: #4a525a;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+.outliner-header { justify-content: space-between; align-items: center; }
+.outliner-header > Label { -unity-font-style: bold; }
+#outliner-search { min-width: 0; margin-bottom: 5px; }
+#outliner-search > Label { min-width: 35px; }
+#outliner-tree { flex-grow: 1; flex-basis: 0; }
+.outliner-row { height: 22px; align-items: stretch; }
+.outliner-row > Button {
+    margin: 0;
+    border-width: 0;
+    border-radius: 0;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+.outliner .outliner-disclosure { width: 20px; min-width: 20px; flex-shrink: 0; flex-grow: 0; }
+.outliner-row > .outliner-disclosure { background-color: transparent; }
+.outliner-row > .outliner-disclosure:hover { background-color: #475563; }
+.outliner-row > .outliner-name {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    -unity-text-align: middle-left;
+    background-color: transparent;
+}
+.outliner-row > .outliner-name:hover { background-color: #435260; }
+.outliner-row > .outliner-name.active-tool { background-color: #5386ac; }
+.channel-legend { color: #d8dee6; margin-left: 7px; margin-bottom: 4px; flex-wrap: wrap; }
+.channel-legend > Label { padding: 0 4px; border-left-width: 2px; margin-right: 3px; }
+.channel-legend > .channel-key { border-left-color: #d97673; }
+.channel-legend > .channel-draft { border-left-color: #e7b867; }
+.channel-legend > .channel-locked { border-left-color: #7c838b; }
+.right-dock .transform-bar .channel-key { background-color: #543e47; }
+.right-dock .transform-bar .channel-draft { background-color: #584e36; }
+.right-dock .transform-bar .channel-locked { background-color: #42474d; }
+.right-dock .transform-bar .channel-selected { border-bottom-width: 2px; border-bottom-color: #86bbf1; }
+#model-scale { margin: 4px 8px; }
+#layer-destination, #clip-weight { margin-left: 6px; color: #c3d6e5; }
+#layer-destination { white-space: normal; }
+#current-frame { min-width: 98px; }
+#current-frame > Label { min-width: 34px; color: #ffe0a4; }
+#auto-key, #transport-loop { flex-grow: 0; flex-shrink: 0; padding-left: 6px; padding-right: 6px; }
+#auto-key > Label, #transport-loop > Label { min-width: 0; margin-right: 4px; }
+#auto-key > .unity-base-field__input, #transport-loop > .unity-base-field__input { flex-grow: 0; flex-shrink: 0; min-width: 18px; }
+#auto-key.active-tool { background-color: #69453e; }

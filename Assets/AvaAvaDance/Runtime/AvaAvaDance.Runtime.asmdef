@@ -1,0 +1,1 @@
+{"name":"AvaAvaDance.Runtime","rootNamespace":"AvaAvaDance","references":["Ava.ExtensionSdk","Ava.MotionSizing","UniGLTF","UniGLTF.Utils","UniHumanoid","VRM10","FastSpringBone10","SpringBoneJobs"],"autoReferenced":true}
