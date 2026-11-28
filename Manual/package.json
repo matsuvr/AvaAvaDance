@@ -1,0 +1,14 @@
+{
+  "name": "avaavadance-manual",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "astro build",
+    "dev": "astro dev"
+  },
+  "type": "module",
+  "dependencies": {
+    "@astrojs/starlight": "^0.37.7",
+    "astro": "^5.18.2"
+  },
+  "private": true
+}
